@@ -353,8 +353,11 @@
     app.classList.add('show');
 
     // O ano não vem explícito na planilha (só nomes de mês). Usamos o ano
-    // corrente do sistema como referência, em vez de um valor fixo.
-    const ano = (new Date()).getFullYear();
+    // ano informado pelo usuário na tela de upload (a planilha não traz o ano).
+    // Se o campo estiver vazio/inválido, usa o ano atual do sistema como padrão.
+    const anoInput = $('#ano-input');
+    const anoDigitado = anoInput ? parseInt(anoInput.value, 10) : NaN;
+    const ano = (anoDigitado >= 2000 && anoDigitado <= 2100) ? anoDigitado : (new Date()).getFullYear();
     data.network.ano = ano;
     const periodo = data.network.months.length
       ? `${MSHORT[data.network.months[0]]} a ${MSHORT[data.network.months[data.network.months.length-1]]}/${ano}` : `${ano}`;
@@ -1109,6 +1112,9 @@
     applyTheme(getTheme());
     const tbu = $('#tema-btn-upload');
     if (tbu) { tbu.innerHTML = getTheme()==='dark'?ICON.sun:ICON.moon; tbu.onclick = () => { toggleTheme(); tbu.innerHTML = getTheme()==='dark'?ICON.sun:ICON.moon; }; }
+    // pré-preenche o ano de referência com o ano atual (o usuário pode ajustar)
+    const anoInput = $('#ano-input');
+    if (anoInput && !anoInput.value) anoInput.value = (new Date()).getFullYear();
     const dz = $('#dropzone'), input = $('#file-input');
     dz.onclick = () => input.click();
     input.onchange = () => { if (input.files[0]) handleFile(input.files[0]); };

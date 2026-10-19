@@ -37,7 +37,9 @@ dados e os meses com tabulação. Novas unidades ou novos meses entram sem alter
 - **Baixar cada gráfico como imagem (PNG)** pelo botão no canto do gráfico.
 - **Ver os dados de um gráfico em tabela** (acessibilidade), nos gráficos de série simples.
 - **Modo claro/escuro** com preferência salva no navegador.
-- O período usa o **ano corrente** do computador (a planilha não traz o ano explícito).
+- O **ano de referência** é informado na tela de upload (campo já pré-preenchido com o
+  ano atual), pois a planilha não traz o ano explícito. Os **meses** são detectados
+  automaticamente a partir dos dados.
 
 ## Estrutura do projeto
 
