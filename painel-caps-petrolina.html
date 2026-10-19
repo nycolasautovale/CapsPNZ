@@ -790,8 +790,9 @@ const ICON = {
       extraCssText: 'box-shadow:0 4px 16px rgba(0,0,0,.18);border-radius:9px;'
     }, extra || {});
   }
-  // axisPointer tipo faixa (shadow) já tematizado — cor sutil do tema
-  function axisShadow(c) { return { type:'shadow', shadowStyle:{ color: c.shadow } }; }
+  // axisPointer: sem faixa de destaque atrás da categoria (removida a
+  // "sombra" sobre a barra). O tooltip por eixo continua funcionando normal.
+  function axisShadow(c) { return { type:'none' }; }
   // aplica tema o quanto antes (evita flash). Chamado no load.
   applyTheme(getTheme());
 
