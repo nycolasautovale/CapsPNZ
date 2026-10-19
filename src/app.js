@@ -60,6 +60,7 @@
   function chartTheme() {
     const cs = getComputedStyle(document.documentElement);
     const v = n => cs.getPropertyValue(n).trim();
+    const dark = document.documentElement.getAttribute('data-theme') === 'dark';
     return {
       azul: v('--azul') || '#123a8f',
       amarelo: v('--amarelo') || '#efb93c',
@@ -67,8 +68,24 @@
       grid: v('--grid-line') || '#eef2f7',
       line: v('--linha-forte') || '#d0d8e4',
       azul300: v('--azul-300') || '#4f73c4',
-      surface: v('--branco') || '#ffffff'
+      surface: v('--branco') || '#ffffff',
+      // tooltip conforme o tema (corrige caixa branca no modo escuro)
+      tip: {
+        backgroundColor: dark ? '#1b2740' : '#ffffff',
+        borderColor: dark ? '#33425f' : '#e4e9f0',
+        textStyle: { color: dark ? '#e9eef6' : '#15202e' }
+      }
     };
+  }
+  // base de tooltip aplicada a todos os gráficos
+  function tipBase(c, extra) {
+    return Object.assign({
+      backgroundColor: c.tip.backgroundColor,
+      borderColor: c.tip.borderColor,
+      borderWidth: 1,
+      textStyle: c.tip.textStyle,
+      extraCssText: 'box-shadow:0 4px 16px rgba(0,0,0,.18);border-radius:9px;'
+    }, extra || {});
   }
   // aplica tema o quanto antes (evita flash). Chamado no load.
   applyTheme(getTheme());
@@ -443,7 +460,7 @@
     const rows = [...data.units].sort((a,b)=>a.totalReal-b.totalReal);
     regChart(dom, () => { const c = chartTheme(); return {
       grid:{left:8,right:70,top:10,bottom:10,containLabel:true},
-      tooltip:{trigger:'axis',axisPointer:{type:'shadow'},valueFormatter:v=>fmt(v)+' proc.'},
+      tooltip:tipBase(c,{trigger:'axis',axisPointer:{type:'shadow'},valueFormatter:v=>fmt(v)+' proc.'}),
       xAxis:{type:'value',show:false,max:v=>v.max*1.12},
       yAxis:{type:'category',data:rows.map(u=>u.name),axisLabel:{fontSize:12,color:c.axis},axisTick:{show:false},axisLine:{lineStyle:{color:c.line}}},
       series:[{type:'bar',data:rows.map(u=>({value:u.totalReal,itemStyle:{color:c.azul,borderRadius:[0,5,5,0]}})),barWidth:'55%',
@@ -456,7 +473,7 @@
     const vals = months.map(m => data.units.reduce((s,u)=> s + u.procedures.reduce((a,p)=>a+(p.realizado[m]||0),0),0));
     regChart(dom, () => { const c = chartTheme(); return {
       grid:{left:8,right:16,top:16,bottom:10,containLabel:true},
-      tooltip:{trigger:'axis',valueFormatter:v=>fmt(v)+' proc.'},
+      tooltip:tipBase(c,{trigger:'axis',valueFormatter:v=>fmt(v)+' proc.'}),
       xAxis:{type:'category',data:months.map(m=>MSHORT[m]),axisLine:{lineStyle:{color:c.line}},axisLabel:{color:c.axis}},
       yAxis:{type:'value',axisLabel:{formatter:v=>fmt(v),color:c.axis},splitLine:{lineStyle:{color:c.grid}}},
       series:[{type:'line',data:vals,smooth:true,symbol:'circle',symbolSize:7,
@@ -546,7 +563,7 @@
       return {
         color:PAL,
         grid:{left:8,right:12,top:52,bottom:8,containLabel:true},
-        tooltip:{trigger:'axis',axisPointer:{type:'shadow'},valueFormatter:v=>fmt(v)+' proc.'},
+        tooltip:tipBase(c,{trigger:'axis',axisPointer:{type:'shadow'},valueFormatter:v=>fmt(v)+' proc.'}),
         legend:{top:0,type:'scroll',textStyle:{color:c.axis,fontSize:10.5},itemWidth:12,itemHeight:8},
         xAxis:{type:'value',show:false},
         yAxis:{type:'category',data:units.map(u=>u.name),axisLabel:{color:c.axis,fontSize:11},axisTick:{show:false},axisLine:{lineStyle:{color:c.line}}},
@@ -566,7 +583,7 @@
     const rows = Object.values(agg).filter(x=>x.v>0).sort((a,b)=>a.v-b.v).slice(-8);
     makeProdChart('ch-mix', () => { const c = chartTheme(); return {
       grid:{left:8,right:72,top:8,bottom:8,containLabel:true},
-      tooltip:{trigger:'axis',axisPointer:{type:'shadow'},valueFormatter:v=>fmt(v)+' proc.'},
+      tooltip:tipBase(c,{trigger:'axis',axisPointer:{type:'shadow'},valueFormatter:v=>fmt(v)+' proc.'}),
       xAxis:{type:'value',show:false,max:v=>v.max*1.12},
       yAxis:{type:'category',data:rows.map(m=>m.desc),axisLabel:{color:c.axis,fontSize:11,width:150,overflow:'truncate'},axisTick:{show:false},axisLine:{lineStyle:{color:c.line}}},
       series:[{type:'bar',barWidth:'60%',data:rows.map((m,i)=>({value:m.v,itemStyle:{color:i===rows.length-1?c.azul:c.azul300,borderRadius:[0,5,5,0]}})),
@@ -586,7 +603,7 @@
       return {
         color:PAL,
         grid:{left:8,right:16,top:40,bottom:8,containLabel:true},
-        tooltip:{trigger:'axis',valueFormatter:v=>fmt(v)+' proc.'},
+        tooltip:tipBase(c,{trigger:'axis',valueFormatter:v=>fmt(v)+' proc.'}),
         legend:{top:0,textStyle:{color:c.axis,fontSize:11.5},itemWidth:14,itemHeight:8},
         xAxis:{type:'category',data:months.map(m=>MSHORT[m]),axisLine:{lineStyle:{color:c.line}},axisLabel:{color:c.axis}},
         yAxis:{type:'value',axisLabel:{formatter:v=>fmt(v),color:c.axis},splitLine:{lineStyle:{color:c.grid}}},
@@ -609,8 +626,15 @@
       const cor = nivel==='crit'?'var(--vermelho)':nivel==='warn'?'var(--ambar)':'var(--verde)';
       const badge = nivel==='crit'?'badge-crit':nivel==='warn'?'badge-warn':'badge-ok';
       const rotulo = nivel==='crit'?'Crítico':nivel==='warn'?'Atenção':'Adequado';
+      const tipTaxa = esc('Taxa geral: do total realizado nos meses com tabulação, quanto chegou ao sistema. Tabuláveis: considerando só os procedimentos que podem ser tabulados (excluindo articulação de redes, matriciamento e similares), quanto foi tabulado. É o número mais justo para avaliar a equipe.');
       return `<div class="card sem-card">
-        <div class="sem-top"><div class="sem-nome">${u.name}</div><span class="badge ${badge}">${rotulo}</span></div>
+        <div class="sem-top">
+          <div class="sem-nome">${u.name}</div>
+          <div class="sem-top-right">
+            <span class="badge ${badge}">${rotulo}</span>
+            <button class="sem-info" type="button" aria-label="O que é isto?" data-tip="${tipTaxa}">${ICON.info}</button>
+          </div>
+        </div>
         <div class="sem-val" style="color:${cor}">${pct(u.taxaGeral)}</div>
         <div class="sem-sub">taxa geral &middot; tabuláveis: <strong>${pct(u.taxaTabulaveis)}</strong></div>
         <div class="sem-bar"><span style="width:${Math.min(100,u.taxaGeral||0)}%;background:${cor}"></span></div>
@@ -648,7 +672,7 @@
     const tab  = caps.map(u => u.procedures.reduce((a,p)=> a+u.tabMonths.reduce((x,m)=>x+(p.tab[m]||0),0),0));
     regChart(dom, () => { const c = chartTheme(); return {
       grid:{left:8,right:16,top:40,bottom:8,containLabel:true},
-      tooltip:{trigger:'axis',axisPointer:{type:'shadow'},valueFormatter:v=>fmt(v)+' proc.'},
+      tooltip:tipBase(c,{trigger:'axis',axisPointer:{type:'shadow'},valueFormatter:v=>fmt(v)+' proc.'}),
       legend:{top:0,textStyle:{color:c.axis},itemWidth:14,itemHeight:10},
       xAxis:{type:'category',data:caps.map(u=>u.name),axisLine:{lineStyle:{color:c.line}},axisLabel:{color:c.axis,interval:0}},
       yAxis:{type:'value',axisLabel:{formatter:v=>fmt(v),color:c.axis},splitLine:{lineStyle:{color:c.grid}}},
@@ -661,23 +685,38 @@
 
   function renderPerdas(data, caps) {
     const wrap=$('#perdas-wrap'); if(!wrap)return;
+    let idx = 0;
     caps.forEach(u => {
       const naoTab = u.naoTabulados.slice(0,5);
       const perdas = u.maioresPerdas.slice(0,4);
       if (!naoTab.length && !perdas.length) return;
+      const aberto = idx === 0;  // primeira unidade aberta, demais fechadas
+      idx++;
       const block = el('div','perda-unidade');
-      let html = `<div class="perda-titulo">${u.name}</div>`;
+      let corpo = '';
       if (naoTab.length) {
-        html += `<div class="perda-grupo"><span class="badge badge-crit">Sem tabulação no período</span><ul>`;
-        naoTab.forEach(p => html += `<li><span>${p.code} ${p.desc}</span><b class="num">${fmt(p.real)} realiz. / 0 tab.</b></li>`);
-        html += `</ul></div>`;
+        corpo += `<div class="perda-grupo"><span class="badge badge-crit">Sem tabulação no período</span><ul>`;
+        naoTab.forEach(p => corpo += `<li><span>${p.code} ${p.desc}</span><b class="num">${fmt(p.real)} realiz. / 0 tab.</b></li>`);
+        corpo += `</ul></div>`;
       }
       if (perdas.length) {
-        html += `<div class="perda-grupo"><span class="badge badge-warn">Maior diferença Realizado - Tabulado</span><ul>`;
-        perdas.forEach(p => html += `<li><span>${p.code} ${p.desc}</span><b class="num">${fmt(p.real)} - ${fmt(p.tab)} = ${fmt(p.gap)} (${pct(p.taxa)})</b></li>`);
-        html += `</ul></div>`;
+        corpo += `<div class="perda-grupo"><span class="badge badge-warn">Maior diferença Realizado - Tabulado</span><ul>`;
+        perdas.forEach(p => corpo += `<li><span>${p.code} ${p.desc}</span><b class="num">${fmt(p.real)} - ${fmt(p.tab)} = ${fmt(p.gap)} (${pct(p.taxa)})</b></li>`);
+        corpo += `</ul></div>`;
       }
-      block.innerHTML = html;
+      block.innerHTML = `
+        <button class="perda-head${aberto?' aberto':''}" type="button" aria-expanded="${aberto}">
+          <span class="perda-titulo">${u.name}</span>
+          <span class="perda-chevron">${ICON.chevron}</span>
+        </button>
+        <div class="perda-corpo"${aberto?'':' hidden'}>${corpo}</div>`;
+      const btn = block.querySelector('.perda-head');
+      const corpoEl = block.querySelector('.perda-corpo');
+      btn.onclick = () => {
+        const open = !corpoEl.hasAttribute('hidden');
+        if (open) { corpoEl.setAttribute('hidden',''); btn.classList.remove('aberto'); btn.setAttribute('aria-expanded','false'); }
+        else { corpoEl.removeAttribute('hidden'); btn.classList.add('aberto'); btn.setAttribute('aria-expanded','true'); }
+      };
       wrap.appendChild(block);
     });
   }
