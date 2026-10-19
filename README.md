@@ -19,9 +19,8 @@ O processamento é 100% local, no próprio navegador. Nenhum dado é enviado pel
 
 - **Panorama da rede** — volume total, participação por unidade e produção mensal.
 - **Produção** — volume por unidade, principais procedimentos e evolução mês a mês.
-- **Realizado x Tabulado** — taxa de tabulação por unidade (geral e dos procedimentos
-  tabuláveis), calculada apenas nos meses em que há dado de tabulação, e o detalhamento
-  de onde a produção não chega ao sistema.
+- **Realizado x Tabulado** — taxa de tabulação por unidade, calculada apenas nos meses
+  em que há dado de tabulação, e o detalhamento de onde a produção não chega ao sistema.
 - **Qualidade dos dados** — inconsistências detectadas automaticamente, de forma transparente.
 - **Insights e recomendações** — sínteses geradas a partir dos números da planilha.
 

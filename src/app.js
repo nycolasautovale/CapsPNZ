@@ -199,13 +199,6 @@
       const realInTab = u.procedures.reduce((s,p)=> s + tm.reduce((a,m)=> a+(p.realizado[m]||0),0), 0);
       const tabInTab  = u.procedures.reduce((s,p)=> s + tm.reduce((a,m)=> a+(p.tab[m]||0),0), 0);
       u.taxaGeral = realInTab>0 ? 100*tabInTab/realInTab : null;
-
-      // taxa dos TABULÁVEIS: só procedimentos com algum tab>0 no ano
-      const tabuláveis = u.procedures.filter(p => Object.values(p.tab).some(v=>v>0));
-      const realTB = tabuláveis.reduce((s,p)=> s + tm.reduce((a,m)=>a+(p.realizado[m]||0),0),0);
-      const tabTB  = tabuláveis.reduce((s,p)=> s + tm.reduce((a,m)=>a+(p.tab[m]||0),0),0);
-      u.taxaTabulaveis = realTB>0 ? 100*tabTB/realTB : null;
-      u.nTabulaveis = tabuláveis.length;
     });
 
     data.network.totalReal = data.units.reduce((s,u)=> s+u.totalReal, 0);
@@ -626,7 +619,7 @@
       const cor = nivel==='crit'?'var(--vermelho)':nivel==='warn'?'var(--ambar)':'var(--verde)';
       const badge = nivel==='crit'?'badge-crit':nivel==='warn'?'badge-warn':'badge-ok';
       const rotulo = nivel==='crit'?'Crítico':nivel==='warn'?'Atenção':'Adequado';
-      const tipTaxa = esc('Taxa geral: do total realizado nos meses com tabulação, quanto chegou ao sistema. Tabuláveis: considerando só os procedimentos que podem ser tabulados (excluindo articulação de redes, matriciamento e similares), quanto foi tabulado. É o número mais justo para avaliar a equipe.');
+      const tipTaxa = esc('Taxa de tabulação: do total realizado nos meses que têm tabulação, qual percentual chegou ao sistema. Toda a produção deveria ser tabulada, então quanto mais perto de 100%, melhor. Calculada só no período em que Realizado e Tabulado coexistem, para ser justa.');
       return `<div class="card sem-card">
         <div class="sem-top">
           <div class="sem-nome">${u.name}</div>
@@ -636,7 +629,7 @@
           </div>
         </div>
         <div class="sem-val" style="color:${cor}">${pct(u.taxaGeral)}</div>
-        <div class="sem-sub">taxa geral &middot; tabuláveis: <strong>${pct(u.taxaTabulaveis)}</strong></div>
+        <div class="sem-sub">taxa de tabulação &middot; meses com TAB</div>
         <div class="sem-bar"><span style="width:${Math.min(100,u.taxaGeral||0)}%;background:${cor}"></span></div>
       </div>`;
     }).join('');
@@ -658,7 +651,7 @@
       </div>
       <div class="card" style="margin-top:16px">
         <div class="card-title">Onde a produção não chega ao sistema</div>
-        <div class="card-sub">Procedimentos com produção registrada mas sem tabulação, ou com maior diferença. Dois grupos: os que podem não ser tabuláveis pela natureza, e os que deveriam ser tabulados.</div>
+        <div class="card-sub">Procedimentos com produção registrada mas sem tabulação, ou com maior diferença entre o que foi feito e o que foi lançado. Toda produção deveria ser tabulada: estes são os pontos a corrigir no registro.</div>
         <div id="perdas-wrap"></div>
       </div>
     `;
@@ -752,7 +745,7 @@
       ).join('');
       itens.push({ kind:'info',
         titulo:`${u.name}: ${u.naoTabulados.length} procedimentos sem tabulação`,
-        desc:'Alguns podem não ser tabuláveis pela natureza (articulação de redes, matriciamento); outros deveriam ser registrados.',
+        desc:'Produção registrada sem nenhuma tabulação no período. Como toda produção deveria ser tabulada, esses registros precisam ser conferidos e lançados no sistema.',
         btnLabel:`Ver os ${u.naoTabulados.length}`,
         detail:`<div class="qa-tablewrap"><table class="qa-table">
             <thead><tr><th>Procedimento</th><th>Realizado</th><th>Tabulado</th></tr></thead>
@@ -824,7 +817,7 @@
     caps.forEach(u => u.naoTabulados.forEach(p => { if(!maiorGapItem||p.real>maiorGapItem.real) maiorGapItem={...p,unidade:u.name}; }));
     if (maiorGapItem) cards.push(['warn', ICON.target,
       `Perda concentrada: ${maiorGapItem.desc}`,
-      `No ${maiorGapItem.unidade}, este procedimento teve ${fmt(maiorGapItem.real)} realizações e nenhuma tabulação no período. Verificar se é tabulável e, em caso afirmativo, corrigir o registro.`]);
+      `No ${maiorGapItem.unidade}, este procedimento teve ${fmt(maiorGapItem.real)} realizações e nenhuma tabulação no período. Como toda produção deveria ser tabulada, é preciso conferir e lançar esses registros no sistema.`]);
 
     // 3. concentração do cuidado
     const top2 = data.network.mix.slice(0,2);
@@ -863,7 +856,7 @@
         <ul>
           <li>Priorizar a revisão do fluxo de tabulação nas unidades com taxa crítica, começando pelos procedimentos de maior volume não registrado.</li>
           <li>Esclarecer, com a equipe, os casos de tabulado maior que realizado, verificando a competência de lançamento.</li>
-          <li>Confirmar se procedimentos sem tabulação são de fato não tabuláveis no sistema, separando-os dos que exigem correção de registro.</li>
+          <li>Conferir e lançar no sistema os procedimentos com produção e sem tabulação, já que toda produção deveria ser registrada.</li>
           <li>Acompanhar a unidade de baixo volume para distinguir subutilização de subnotificação.</li>
         </ul>
       </div>`;

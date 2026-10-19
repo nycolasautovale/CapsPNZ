@@ -49,7 +49,7 @@ const expect = {
   'CAPS AD III': { real: 20625, taxaG: 11.1 },
 };
 data.units.forEach(u => {
-  const line = `  ${u.name.padEnd(38)} real=${u.totalReal} taxaGeral=${u.taxaGeral==null?'—':u.taxaGeral.toFixed(1)}% taxaTab=${u.taxaTabulaveis==null?'—':u.taxaTabulaveis.toFixed(1)}%`;
+  const line = `  ${u.name.padEnd(38)} real=${u.totalReal} taxaGeral=${u.taxaGeral==null?'—':u.taxaGeral.toFixed(1)}%`;
   console.log(line);
   const ex = expect[u.sheet];
   if (ex) {
