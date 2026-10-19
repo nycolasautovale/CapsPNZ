@@ -812,32 +812,41 @@
     };});
   }
 
+  // gera um grupo de lista com top N visível + "Ver todos" para o restante
+  function listaComMais(itens, render, topN, labelMais) {
+    const topo = itens.slice(0, topN).map(render).join('');
+    if (itens.length <= topN) return `<ul>${topo}</ul>`;
+    const resto = itens.slice(topN).map(render).join('');
+    const label = labelMais.replace('{n}', itens.length);
+    return `<ul>${topo}</ul>
+      <ul class="perda-extra" hidden>${resto}</ul>
+      <button class="perda-mais" type="button" data-label="${esc(label)}">${label}</button>`;
+  }
+
   function renderPerdas(data, caps) {
     const wrap=$('#perdas-wrap'); if(!wrap)return;
     let idx = 0;
     caps.forEach(u => {
-      const naoTab = u.naoTabulados;            // lista completa (fonte única)
-      const perdas = u.maioresPerdas.slice(0,4); // ranking: mostra o topo
+      const naoTab = u.naoTabulados;
+      const perdas = u.maioresPerdas;
       if (!naoTab.length && !perdas.length) return;
       const aberto = idx === 0;  // primeira unidade aberta, demais fechadas
       idx++;
       const block = el('div','perda-unidade');
       let corpo = '';
       if (naoTab.length) {
-        corpo += `<div class="perda-grupo"><ul>`;
-        naoTab.forEach(p => corpo += `<li><span>${p.code} ${p.desc}</span><b class="num">${fmt(p.real)} realiz. / 0 tab.</b></li>`);
-        corpo += `</ul></div>`;
+        const render = p => `<li><span>${p.code} ${p.desc}</span><b class="num">${fmt(p.real)} realiz. / 0 tab.</b></li>`;
+        corpo += `<div class="perda-grupo">${listaComMais(naoTab, render, 5, 'Ver todos os {n} sem tabulação')}</div>`;
       }
       if (perdas.length) {
-        corpo += `<div class="perda-grupo"><span class="badge badge-warn">Maior diferença Realizado - Tabulado</span><ul>`;
-        perdas.forEach(p => corpo += `<li><span>${p.code} ${p.desc}</span><b class="num">${fmt(p.real)} - ${fmt(p.tab)} = ${fmt(p.gap)} (${pct(p.taxa)})</b></li>`);
-        corpo += `</ul></div>`;
+        const render = p => `<li><span>${p.code} ${p.desc}</span><b class="num">${fmt(p.real)} - ${fmt(p.tab)} = ${fmt(p.gap)} (${pct(p.taxa)})</b></li>`;
+        corpo += `<div class="perda-grupo"><span class="badge badge-warn">Maior diferença Realizado - Tabulado</span>${listaComMais(perdas, render, 4, 'Ver todos os {n} procedimentos')}</div>`;
       }
       // frase acionável: volume absoluto de produção sem registro nesta unidade,
       // no período (toda a lacuna: zero-tab + subtabulados). Sem projeção de taxa.
       let acionavel = '';
       if (u.lacunaRegistro>0) {
-        acionavel = `<div class="perda-acao">${ICON.target} No período, <strong>${fmt(u.lacunaRegistro)} procedimentos</strong> realizados nesta unidade não foram tabulados (de ${fmt(u.realInTab)} realizados nos meses com tabulação). Toda produção deveria ser registrada no sistema.</div>`;
+        acionavel = `<div class="perda-acao">${ICON.target}<span>Esta unidade realizou <strong>${fmt(u.realInTab)}</strong> procedimentos nos meses com tabulação, mas <strong>${fmt(u.lacunaRegistro)}</strong> não foram tabulados. Toda produção deveria ser registrada no sistema.</span></div>`;
       }
       const resumo = naoTab.length ? `${naoTab.length} sem tabulação` : '';
       block.innerHTML = `
@@ -853,6 +862,15 @@
         if (open) { corpoEl.setAttribute('hidden',''); btn.classList.remove('aberto'); btn.setAttribute('aria-expanded','false'); }
         else { corpoEl.removeAttribute('hidden'); btn.classList.add('aberto'); btn.setAttribute('aria-expanded','true'); }
       };
+      // "Ver todos" dentro de cada grupo
+      block.querySelectorAll('.perda-mais').forEach(mais => {
+        mais.onclick = () => {
+          const extra = mais.previousElementSibling; // <ul class="perda-extra">
+          const abrir = extra.hasAttribute('hidden');
+          extra.toggleAttribute('hidden', !abrir);
+          mais.textContent = abrir ? 'Ver menos' : mais.dataset.label;
+        };
+      });
       wrap.appendChild(block);
     });
   }

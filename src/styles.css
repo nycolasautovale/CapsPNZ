@@ -463,9 +463,13 @@ footer.rodape { border-top: 1px solid var(--linha); padding: 22px 0; font-size: 
 .chart-tabela { margin-top: 14px; }
 
 /* frase acionável nas perdas */
-.perda-acao { display: flex; align-items: flex-start; gap: 9px; background: var(--ambar-050); border: 1px solid var(--ambar); border-radius: var(--raio-sm); padding: 11px 14px; margin-bottom: 12px; font-size: 13.5px; color: var(--tinta-600); }
-.perda-acao svg { width: 18px; height: 18px; color: var(--ambar); flex: 0 0 auto; margin-top: 1px; }
+.perda-acao { display: flex; align-items: flex-start; gap: 10px; background: var(--ambar-050); border: 1px solid var(--ambar); border-radius: var(--raio-sm); padding: 12px 14px; margin-bottom: 14px; font-size: 13.5px; line-height: 1.5; color: var(--tinta-600); }
+.perda-acao svg { width: 18px; height: 18px; color: var(--ambar); flex: 0 0 auto; margin-top: 2px; }
 .perda-acao strong { color: var(--tinta); font-weight: 700; }
+
+/* "Ver todos / Ver menos" dentro dos grupos de perdas */
+.perda-mais { margin-top: 8px; background: transparent; border: none; color: var(--azul); font-size: 12.5px; font-weight: 600; cursor: pointer; padding: 4px 2px; }
+.perda-mais:hover { color: var(--azul-700); text-decoration: underline; }
 
 /* ===================== RESPONSIVO ===================== */
 @media (max-width: 920px) {
@@ -549,6 +553,6 @@ footer.rodape { border-top: 1px solid var(--linha); padding: 22px 0; font-size: 
   .capa { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .rec { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   /* detalhes recolhidos aparecem no PDF para registro completo */
-  .perda-corpo[hidden], .qa-detalhe[hidden], .chart-tabela[hidden] { display: block !important; }
-  .perda-chevron { display: none; }
+  .perda-corpo[hidden], .qa-detalhe[hidden], .chart-tabela[hidden], .perda-extra[hidden] { display: block !important; }
+  .perda-chevron, .perda-mais { display: none; }
 }
