@@ -124,7 +124,6 @@
       // mapeia colunas de mês e TAB pelos NOMES do cabeçalho
       const header = grid[hr] || [];
       const monthCol = {}, tabCol = {};
-      let totalCol = -1;
       header.forEach((h, c) => {
         const H = norm(h).toUpperCase();
         if (MONTHS.includes(H)) monthCol[H] = c;
@@ -133,21 +132,16 @@
           const full = MONTHS.find(m => m === abbr || m.startsWith(abbr) || abbr.startsWith(m.slice(0,3)));
           if (full) tabCol[full] = c;
         }
-        else if (H === 'TOTAL') totalCol = c;   // total digitado na planilha
       });
 
       // lê linhas de procedimento até "Total procedimentos"
       const procedures = [];
-      let totalDigitadoUnidade = null;  // valor da coluna TOTAL na linha "Total procedimentos"
       for (let r = hr + 1; r < grid.length; r++) {
         const row = grid[r] || [];
         const label = norm(row[0]);
         if (label === '') continue;
         const up = label.toUpperCase();
-        if (up.startsWith('TOTAL PROCEDIMENTOS') || up.startsWith('TOTAL DE PROCEDIMENTOS')) {
-          if (totalCol >= 0 && isNum(row[totalCol])) totalDigitadoUnidade = toNum(row[totalCol]);
-          break;
-        }
+        if (up.startsWith('TOTAL PROCEDIMENTOS') || up.startsWith('TOTAL DE PROCEDIMENTOS')) break;
         const m = label.match(/^(\d{2,4})\s*-?\s*(.*)$/);
         if (!m) continue; // não é procedimento (sem código) -> ignora
         const code = m[1], desc = m[2].trim();
@@ -166,8 +160,7 @@
               result.warnings.push(`${sheetName} · ${code} · ${MSHORT[mo]}/TAB: valor não numérico "${raw}" (ignorado).`);
           }
         });
-        const totalDigitado = (totalCol >= 0 && isNum(row[totalCol])) ? toNum(row[totalCol]) : null;
-        procedures.push({ code, desc, realizado, tab, totalDigitado });
+        procedures.push({ code, desc, realizado, tab });
       }
 
       if (procedures.length === 0) {
@@ -183,7 +176,6 @@
         sheet: sheetName,
         name: UNIT_NAMES[sheetName] || sheetName,
         hasTab, monthsPresent, tabMonths, procedures,
-        totalDigitadoUnidade,
         isNew: !(sheetName in UNIT_NAMES)
       });
     });
@@ -305,14 +297,6 @@
     data.network.maiorQueda = comVar.filter(x=>x.varPct<0).sort((a,b)=>a.varPct-b.varPct)[0] || null;
     data.network.maiorAlta  = comVar.filter(x=>x.varPct>0).sort((a,b)=>b.varPct-a.varPct)[0] || null;
 
-    // ---- conferência: total recalculado x total digitado na planilha ----
-    data.network.conferencia = [];
-    data.units.forEach(u => {
-      if (u.totalDigitadoUnidade == null) return;
-      const recalc = u.totalReal;  // só realizado (o digitado costuma somar real+tab)
-      if (recalc !== u.totalDigitadoUnidade)
-        data.network.conferencia.push({ unidade:u.name, recalc, digitado:u.totalDigitadoUnidade, dif: u.totalDigitadoUnidade - recalc });
-    });
   }
 
   function sumObj(o){ return Object.values(o).reduce((a,b)=>a+b,0); }
@@ -908,20 +892,6 @@
         btnLabel:`Ver os ${data.network.tabGtCount} registros`,
         detail:`<div class="qa-tablewrap"><table class="qa-table">
             <thead><tr><th>Unidade</th><th>Procedimento</th><th>Mês</th><th>Realizado</th><th>Tabulado</th><th>Diferença</th></tr></thead>
-            <tbody>${linhas}</tbody></table></div>` });
-    }
-
-    // conferência: total digitado na planilha x total recalculado das células
-    if (data.network.conferencia && data.network.conferencia.length) {
-      const linhas = data.network.conferencia.map(c =>
-        `<tr><td>${c.unidade}</td><td class="num">${fmt(c.recalc)}</td><td class="num">${fmt(c.digitado)}</td><td class="num qa-gap">${c.dif>0?'+':''}${fmt(c.dif)}</td></tr>`
-      ).join('');
-      itens.push({ kind:'info',
-        titulo:`${data.network.conferencia.length} unidades com TOTAL da planilha diferente do recalculado`,
-        desc:'O painel recalcula os totais a partir das células (só Realizado). O TOTAL digitado na planilha costuma ser maior porque soma Realizado + Tabulado. Vale conferir a fórmula da planilha de origem.',
-        btnLabel:'Ver a conferência',
-        detail:`<div class="qa-tablewrap"><table class="qa-table">
-            <thead><tr><th>Unidade</th><th>Recalculado (Realizado)</th><th>TOTAL digitado</th><th>Diferença</th></tr></thead>
             <tbody>${linhas}</tbody></table></div>` });
     }
 

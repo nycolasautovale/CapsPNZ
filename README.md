@@ -23,9 +23,9 @@ O processamento é 100% local, no próprio navegador. Nenhum dado é enviado pel
 - **Produção** — volume por unidade, principais procedimentos e evolução mês a mês.
 - **Realizado x Tabulado** — taxa de tabulação por unidade; a **evolução mensal dessa taxa**
   (mostra se o registro melhora ou piora); e o detalhamento de onde a produção não chega ao
-  sistema, com o **potencial de recuperação** por unidade (quanto a taxa subiria se tudo fosse lançado).
-- **Qualidade dos dados** — inconsistências detectadas automaticamente (tabulado maior que
-  realizado, total digitado diferente do recalculado), de forma transparente.
+  sistema, com a **lacuna de registro** por unidade (volume de produção realizada que não foi tabulada).
+- **Qualidade dos dados** — inconsistências detectadas automaticamente (como registros com
+  tabulado maior que realizado), de forma transparente.
 - **Insights e recomendações** — sínteses priorizadas por severidade, a partir dos números da planilha.
 
 O painel se adapta automaticamente à planilha: detecta as unidades (abas), os meses com
