@@ -955,12 +955,10 @@ const ICON = {
       u.naoTabulados = u.procLosses.filter(x=>x.nuncaTab).sort((a,b)=>b.real-a.real);
       u.maioresPerdas = u.procLosses.filter(x=>!x.nuncaTab && x.gap>0).sort((a,b)=>b.gap-a.gap);
 
-      // POTENCIAL: se tudo que está "sem tabulação" fosse lançado, a taxa da
-      // unidade subiria de taxaGeral para taxaPotencial (produção não muda; só
-      // o tabulado aumenta na medida do realizado hoje sem registro).
-      const realNaoTab = u.naoTabulados.reduce((a,x)=>a+x.real,0);
-      u.recuperavel = realNaoTab;  // produção que chegaria ao sistema
-      u.taxaPotencial = (u.realInTab>0) ? 100*Math.min(u.tabInTab+realNaoTab, u.realInTab)/u.realInTab : null;
+      // LACUNA total de registro no período: toda a produção realizada nos meses
+      // com TAB que NÃO foi tabulada (inclui os zero-tab E a subtabulação dos
+      // demais). É o volume absoluto de produção que não chegou ao sistema.
+      u.lacunaRegistro = Math.max(0, u.realInTab - u.tabInTab);
     });
 
     // ---- alertas automáticos (data-driven) ----
@@ -1565,11 +1563,11 @@ const ICON = {
         perdas.forEach(p => corpo += `<li><span>${p.code} ${p.desc}</span><b class="num">${fmt(p.real)} - ${fmt(p.tab)} = ${fmt(p.gap)} (${pct(p.taxa)})</b></li>`);
         corpo += `</ul></div>`;
       }
-      // frase acionável: quanto a taxa DESTA unidade subiria se o que está sem
-      // tabulação fosse lançado (não compara com outras unidades)
+      // frase acionável: volume absoluto de produção sem registro nesta unidade,
+      // no período (toda a lacuna: zero-tab + subtabulados). Sem projeção de taxa.
       let acionavel = '';
-      if (u.recuperavel>0 && u.taxaPotencial!=null && u.taxaGeral!=null && u.taxaPotencial - u.taxaGeral >= 0.1) {
-        acionavel = `<div class="perda-acao">${ICON.target} Lançando a produção hoje sem registro (${fmt(u.recuperavel)} procedimentos), a taxa de tabulação desta unidade passaria de <strong>${pct(u.taxaGeral)}</strong> para <strong>${pct(u.taxaPotencial)}</strong>.</div>`;
+      if (u.lacunaRegistro>0) {
+        acionavel = `<div class="perda-acao">${ICON.target} No período, <strong>${fmt(u.lacunaRegistro)} procedimentos</strong> realizados nesta unidade não foram tabulados (de ${fmt(u.realInTab)} realizados nos meses com tabulação). Toda produção deveria ser registrada no sistema.</div>`;
       }
       const resumo = naoTab.length ? `${naoTab.length} sem tabulação` : '';
       block.innerHTML = `

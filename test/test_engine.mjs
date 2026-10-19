@@ -78,7 +78,7 @@ data.units.filter(u=>u.hasTab).forEach(u=>{ if(!Array.isArray(u.naoTabulados)){c
 console.log('\n=== NOVOS CAMPOS (melhorias) ===');
 data.units.filter(u=>u.hasTab).forEach(u=>{
   const serie = u.taxaMensal.map(x=>`${x.mes.slice(0,3)}=${x.taxa==null?'—':x.taxa.toFixed(0)}%`).join(' ');
-  console.log(`  ${u.name}: taxaGeral=${u.taxaGeral?.toFixed(1)}% -> potencial=${u.taxaPotencial?.toFixed(1)}% (recuperavel=${u.recuperavel}) | mensal: ${serie}`);
+  console.log(`  ${u.name}: taxaGeral=${u.taxaGeral?.toFixed(1)}% | lacunaRegistro=${u.lacunaRegistro} | mensal: ${serie}`);
 });
 console.log('prodMensal varPct:', data.network.prodMensal.map(x=>`${x.mes.slice(0,3)}:${x.varPct==null?'—':x.varPct.toFixed(0)+'%'}`).join(' '));
 console.log('maiorQueda:', data.network.maiorQueda ? `${data.network.maiorQueda.mes} ${data.network.maiorQueda.varPct.toFixed(1)}%` : 'nenhuma');
@@ -87,7 +87,7 @@ console.log('tabGtAgg (top3):', data.network.tabGtAgg.slice(0,3).map(x=>`${x.des
 console.log('conferencia (total digitado != recalculado):', data.network.conferencia.length, data.network.conferencia.map(c=>`${c.unidade}: calc ${c.recalc} vs dig ${c.digitado}`));
 if (!Array.isArray(data.network.prodMensal) || !data.network.prodMensal.length) { console.log('[FALHA] prodMensal vazio'); pass=false; }
 data.units.filter(u=>u.hasTab).forEach(u=>{
-  if (u.taxaPotencial!=null && u.taxaGeral!=null && u.taxaPotencial < u.taxaGeral - 0.001) { console.log('[FALHA] taxaPotencial < taxaGeral em',u.name); pass=false; }
+  if (u.lacunaRegistro!=null && u.realInTab!=null && u.lacunaRegistro > u.realInTab) { console.log('[FALHA] lacunaRegistro > realInTab em',u.name); pass=false; }
 });
 
 console.log('\n' + (pass ? '>>> TODOS OS TESTES PASSARAM' : '>>> HÁ FALHAS'));
