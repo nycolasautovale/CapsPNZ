@@ -84,7 +84,6 @@
       borderColor: c.tip.borderColor,
       borderWidth: 1,
       textStyle: c.tip.textStyle,
-      confine: true,
       extraCssText: 'box-shadow:0 4px 16px rgba(0,0,0,.18);border-radius:9px;'
     }, extra || {});
   }
