@@ -535,6 +535,24 @@
     REG.push({ ch, buildOption });
   }
 
+  // formatter do tooltip da Composição: título (unidade) + linhas em duas
+  // colunas (nome à esquerda, pode quebrar; valor alinhado à direita).
+  // Evita que o número "caia" para a linha de baixo quando o nome é longo.
+  function tipComposicao(c) {
+    return params => {
+      if (!Array.isArray(params) || !params.length) return '';
+      const titulo = `<div style="font-weight:600;margin-bottom:6px;color:${c.tip.textStyle.color}">${params[0].axisValueLabel}</div>`;
+      const linhas = params.map(p => {
+        const nome = `<span style="display:inline-flex;align-items:center;gap:7px;max-width:200px">
+            <span style="width:9px;height:9px;border-radius:50%;background:${p.color};flex:0 0 auto"></span>
+            <span style="white-space:normal">${p.seriesName}</span></span>`;
+        const valor = `<b style="margin-left:18px;white-space:nowrap">${fmt(p.value)} proc.</b>`;
+        return `<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;padding:2px 0">${nome}${valor}</div>`;
+      }).join('');
+      return titulo + linhas;
+    };
+  }
+
   // Composição por unidade (barras empilhadas por tipo de procedimento)
   function chartComposicao(data, estado) {
     // top 5 tipos (por realizado na rede) + "Outros"
@@ -556,7 +574,7 @@
       return {
         color:PAL,
         grid:{left:8,right:12,top:52,bottom:8,containLabel:true},
-        tooltip:tipBase(c,{trigger:'axis',axisPointer:{type:'shadow'},valueFormatter:v=>fmt(v)+' proc.'}),
+        tooltip:tipBase(c,{trigger:'axis',axisPointer:{type:'shadow'},formatter:tipComposicao(c)}),
         legend:{top:0,type:'scroll',textStyle:{color:c.axis,fontSize:11},itemWidth:12,itemHeight:8,
           pageIconColor:c.axis,pageIconInactiveColor:c.line,pageTextStyle:{color:c.axis}},
         xAxis:{type:'value',show:false},
