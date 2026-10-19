@@ -117,6 +117,7 @@
       // mapeia colunas de mês e TAB pelos NOMES do cabeçalho
       const header = grid[hr] || [];
       const monthCol = {}, tabCol = {};
+      let totalCol = -1;
       header.forEach((h, c) => {
         const H = norm(h).toUpperCase();
         if (MONTHS.includes(H)) monthCol[H] = c;
@@ -125,16 +126,21 @@
           const full = MONTHS.find(m => m === abbr || m.startsWith(abbr) || abbr.startsWith(m.slice(0,3)));
           if (full) tabCol[full] = c;
         }
+        else if (H === 'TOTAL') totalCol = c;   // total digitado na planilha
       });
 
       // lê linhas de procedimento até "Total procedimentos"
       const procedures = [];
+      let totalDigitadoUnidade = null;  // valor da coluna TOTAL na linha "Total procedimentos"
       for (let r = hr + 1; r < grid.length; r++) {
         const row = grid[r] || [];
         const label = norm(row[0]);
         if (label === '') continue;
         const up = label.toUpperCase();
-        if (up.startsWith('TOTAL PROCEDIMENTOS') || up.startsWith('TOTAL DE PROCEDIMENTOS')) break;
+        if (up.startsWith('TOTAL PROCEDIMENTOS') || up.startsWith('TOTAL DE PROCEDIMENTOS')) {
+          if (totalCol >= 0 && isNum(row[totalCol])) totalDigitadoUnidade = toNum(row[totalCol]);
+          break;
+        }
         const m = label.match(/^(\d{2,4})\s*-?\s*(.*)$/);
         if (!m) continue; // não é procedimento (sem código) -> ignora
         const code = m[1], desc = m[2].trim();
@@ -153,7 +159,8 @@
               result.warnings.push(`${sheetName} · ${code} · ${MSHORT[mo]}/TAB: valor não numérico "${raw}" (ignorado).`);
           }
         });
-        procedures.push({ code, desc, realizado, tab });
+        const totalDigitado = (totalCol >= 0 && isNum(row[totalCol])) ? toNum(row[totalCol]) : null;
+        procedures.push({ code, desc, realizado, tab, totalDigitado });
       }
 
       if (procedures.length === 0) {
@@ -169,6 +176,7 @@
         sheet: sheetName,
         name: UNIT_NAMES[sheetName] || sheetName,
         hasTab, monthsPresent, tabMonths, procedures,
+        totalDigitadoUnidade,
         isNew: !(sheetName in UNIT_NAMES)
       });
     });
@@ -199,6 +207,15 @@
       const realInTab = u.procedures.reduce((s,p)=> s + tm.reduce((a,m)=> a+(p.realizado[m]||0),0), 0);
       const tabInTab  = u.procedures.reduce((s,p)=> s + tm.reduce((a,m)=> a+(p.tab[m]||0),0), 0);
       u.taxaGeral = realInTab>0 ? 100*tabInTab/realInTab : null;
+      u.realInTab = realInTab;  // base realizada nos meses com TAB (p/ potencial)
+      u.tabInTab  = tabInTab;
+
+      // série mensal da taxa de tabulação (só nos meses com TAB da unidade)
+      u.taxaMensal = tm.map(m => {
+        const r = u.procedures.reduce((a,p)=>a+(p.realizado[m]||0),0);
+        const t = u.procedures.reduce((a,p)=>a+(p.tab[m]||0),0);
+        return { mes:m, taxa: r>0 ? 100*t/r : null, real:r, tab:t };
+      });
     });
 
     data.network.totalReal = data.units.reduce((s,u)=> s+u.totalReal, 0);
@@ -231,6 +248,13 @@
       // classificação: "não tabulado" = nunca teve tab no período
       u.naoTabulados = u.procLosses.filter(x=>x.nuncaTab).sort((a,b)=>b.real-a.real);
       u.maioresPerdas = u.procLosses.filter(x=>!x.nuncaTab && x.gap>0).sort((a,b)=>b.gap-a.gap);
+
+      // POTENCIAL: se tudo que está "sem tabulação" fosse lançado, a taxa da
+      // unidade subiria de taxaGeral para taxaPotencial (produção não muda; só
+      // o tabulado aumenta na medida do realizado hoje sem registro).
+      const realNaoTab = u.naoTabulados.reduce((a,x)=>a+x.real,0);
+      u.recuperavel = realNaoTab;  // produção que chegaria ao sistema
+      u.taxaPotencial = (u.realInTab>0) ? 100*Math.min(u.tabInTab+realNaoTab, u.realInTab)/u.realInTab : null;
     });
 
     // ---- alertas automáticos (data-driven) ----
@@ -252,6 +276,38 @@
     })));
     data.network.tabGtCount = tabGtList.length;
     data.network.tabGtList = tabGtList;
+
+    // agrega TAB>Realizado por procedimento (onde o padrão se concentra)
+    const tabGtAgg = {};
+    tabGtList.forEach(r => {
+      const k = r.code+' '+r.desc;
+      tabGtAgg[k] = tabGtAgg[k] || { code:r.code, desc:r.desc, ocorrencias:0, excedente:0 };
+      tabGtAgg[k].ocorrencias++;
+      tabGtAgg[k].excedente += (r.tab - r.real);
+    });
+    data.network.tabGtAgg = Object.values(tabGtAgg).sort((a,b)=>b.ocorrencias-a.ocorrencias);
+
+    // ---- produção mensal da rede + variação mês a mês ----
+    data.network.prodMensal = data.network.months.map(m => ({
+      mes:m, valor: data.units.reduce((s,u)=> s + u.procedures.reduce((a,p)=>a+(p.realizado[m]||0),0),0)
+    }));
+    data.network.prodMensal.forEach((x,i)=>{
+      const ant = i>0 ? data.network.prodMensal[i-1].valor : null;
+      x.varPct = (ant!=null && ant>0) ? 100*(x.valor-ant)/ant : null;
+    });
+    // maior queda e maior alta mês a mês (para destaque)
+    const comVar = data.network.prodMensal.filter(x=>x.varPct!=null);
+    data.network.maiorQueda = comVar.filter(x=>x.varPct<0).sort((a,b)=>a.varPct-b.varPct)[0] || null;
+    data.network.maiorAlta  = comVar.filter(x=>x.varPct>0).sort((a,b)=>b.varPct-a.varPct)[0] || null;
+
+    // ---- conferência: total recalculado x total digitado na planilha ----
+    data.network.conferencia = [];
+    data.units.forEach(u => {
+      if (u.totalDigitadoUnidade == null) return;
+      const recalc = u.totalReal;  // só realizado (o digitado costuma somar real+tab)
+      if (recalc !== u.totalDigitadoUnidade)
+        data.network.conferencia.push({ unidade:u.name, recalc, digitado:u.totalDigitadoUnidade, dif: u.totalDigitadoUnidade - recalc });
+    });
   }
 
   function sumObj(o){ return Object.values(o).reduce((a,b)=>a+b,0); }
@@ -305,8 +361,12 @@
     const app = $('#tela-app');
     app.classList.add('show');
 
+    // O ano não vem explícito na planilha (só nomes de mês). Usamos o ano
+    // corrente do sistema como referência, em vez de um valor fixo.
+    const ano = (new Date()).getFullYear();
+    data.network.ano = ano;
     const periodo = data.network.months.length
-      ? `${MSHORT[data.network.months[0]]} a ${MSHORT[data.network.months[data.network.months.length-1]]}/2026` : '2026';
+      ? `${MSHORT[data.network.months[0]]} a ${MSHORT[data.network.months[data.network.months.length-1]]}/${ano}` : `${ano}`;
 
     app.innerHTML = `
       <div class="topbar"><div class="wrap">
@@ -315,6 +375,7 @@
         <img src="${LOGO.saude}" alt="Secretaria de Saúde">
         <div class="tb-title">Produção da Rede CAPS</div>
         <div class="tb-period">${periodo}</div>
+        <button class="tb-acao" id="btn-imprimir" type="button" aria-label="Imprimir ou salvar como PDF" title="Imprimir / salvar PDF">${ICON.printer}</button>
         <button class="tema-btn" id="tema-btn" type="button" aria-label="Alternar tema"></button>
       </div></div>
       <nav class="nav-mobile" id="nav-mobile"></nav>
@@ -344,6 +405,8 @@
     applyTheme(getTheme());               // garante ícone correto no botão
     const tbtn = $('#tema-btn');
     if (tbtn) tbtn.onclick = toggleTheme;
+    const pbtn = $('#btn-imprimir');
+    if (pbtn) pbtn.onclick = () => window.print();
   }
 
   // destaca item do índice conforme a rolagem
@@ -393,8 +456,30 @@
           <div><div class="l">Unidades</div><div class="v num">${data.network.nUnits}</div></div>
           <div><div class="l">Procedimentos realizados</div><div class="v num">${fmt(data.network.totalReal)}</div></div>
         </div>
-      </div>`;
+      </div>
+      ${sumarioExecutivo(data)}`;
     return s;
+  }
+
+  // Sumário executivo: 3 a 4 frases que o gestor lê em poucos segundos.
+  function sumarioExecutivo(data) {
+    const caps = data.units.filter(u=>u.hasTab);
+    const totReal = caps.reduce((a,u)=>a+u.realInTab,0);
+    const totTab  = caps.reduce((a,u)=>a+u.tabInTab,0);
+    const taxaRede = totReal>0 ? 100*totTab/totReal : null;
+    const pior = [...caps].filter(u=>u.taxaGeral!=null).sort((a,b)=>a.taxaGeral-b.taxaGeral)[0];
+    const pontos = [];
+    pontos.push(`A rede realizou <strong>${fmt(data.network.totalReal)} procedimentos</strong> em <strong>${data.network.months.length} meses</strong> de produção, distribuídos entre <strong>${data.network.nUnits} unidades</strong>.`);
+    if (taxaRede!=null)
+      pontos.push(`Nos meses com dado de tabulação, <strong>${pct(taxaRede)}</strong> da produção das unidades CAPS chegou ao sistema; o restante foi realizado mas não registrado.`);
+    if (pior && pior.taxaGeral!=null && pior.taxaGeral<50)
+      pontos.push(`O principal ponto de atenção é a tabulação no <strong>${pior.name}</strong> (<strong>${pct(pior.taxaGeral)}</strong>), a menor taxa da rede.`);
+    if (data.network.tabGtCount>0)
+      pontos.push(`Há <strong>${data.network.tabGtCount} registros</strong> com tabulado maior que realizado, sinalizados para conferência na seção Qualidade dos dados.`);
+    return `<div class="sumario">
+      <div class="sumario-head">${ICON.bulb} Resumo para a gestão</div>
+      <ul>${pontos.map(p=>`<li>${p}</li>`).join('')}</ul>
+    </div>`;
   }
 
   // ---- Seção: Panorama ----
@@ -424,13 +509,32 @@
           'Número de meses com produção registrada na planilha. Ao lado, quantos desses meses já possuem dados de tabulação.')}
       </div>
       <div class="grid-2" style="margin-top:16px">
-        <div class="card"><div class="card-title">Participação por unidade</div><div class="card-sub">Procedimentos realizados no período (todas as competências)</div><div class="chart" id="ch-participacao"></div></div>
-        <div class="card"><div class="card-title">Produção mensal da rede</div><div class="card-sub">Total de procedimentos realizados por mês</div><div class="chart" id="ch-mensal"></div></div>
-      </div>`;
+        <div class="card">${cardHead('Participação por unidade','Procedimentos realizados no período (todas as competências)','ch-participacao')}<div class="chart" id="ch-participacao"></div></div>
+        <div class="card">${cardHead('Produção mensal da rede','Total de procedimentos realizados por mês','ch-mensal')}<div class="chart" id="ch-mensal"></div></div>
+      </div>
+      ${notaVariacao(data)}`;
 
     // desenha gráficos depois do DOM existir
-    setTimeout(()=>{ chartParticipacao(data); chartMensal(data); }, 0);
+    setTimeout(()=>{ chartParticipacao(data); chartMensal(data); wireCardTools(s); }, 0);
     return s;
+  }
+
+  // nota de variação mensal (maior queda / maior alta)
+  function notaVariacao(data) {
+    const q = data.network.maiorQueda, a = data.network.maiorAlta;
+    if (!q && !a) return '';
+    const partes = [];
+    if (a) partes.push(`a maior alta foi em <strong>${MSHORT[a.mes]}</strong> (<strong>+${a.varPct.toFixed(1)}%</strong> ante o mês anterior)`);
+    if (q) partes.push(`a maior queda foi em <strong>${MSHORT[q.mes]}</strong> (<strong>${q.varPct.toFixed(1)}%</strong>)`);
+    return `<div class="nota"><span class="nota-ico">${ICON.info}</span><span>Variação mês a mês da produção da rede: ${partes.join('; ')}. Meses com queda acentuada valem conferência (pode ser sazonalidade ou subnotificação).</span></div>`;
+  }
+
+  // cabeçalho de card de gráfico: título + subtítulo + ferramentas (baixar/tabela)
+  function cardHead(title, sub, chartId, comTabela=true) {
+    return `<div class="card-head">
+      <div><div class="card-title">${title}</div><div class="card-sub">${sub}</div></div>
+      ${cardTools(chartId, comTabela)}
+    </div>`;
   }
 
   // monta um cartão KPI com ícone de informação (tooltip ao passar o mouse / tocar)
@@ -459,6 +563,10 @@
       series:[{type:'bar',data:rows.map(u=>({value:u.totalReal,itemStyle:{color:c.azul,borderRadius:[0,5,5,0]}})),barWidth:'55%',
         label:{show:true,position:'right',formatter:p=>fmt(p.value),color:c.axis,fontSize:11.5}}]
     };});
+    regTable('ch-participacao', () => ({
+      colunas:['Unidade','Procedimentos realizados'],
+      linhas:[...data.units].sort((a,b)=>b.totalReal-a.totalReal).map(u=>[u.name, fmt(u.totalReal)])
+    }));
   }
   function chartMensal(data) {
     const dom = $('#ch-mensal'); if(!dom) return;
@@ -473,6 +581,10 @@
         lineStyle:{color:c.azul,width:3},itemStyle:{color:c.azul},
         areaStyle:{color:new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:hexA(c.azul,.18)},{offset:1,color:hexA(c.azul,0)}])}}]
     };});
+    regTable('ch-mensal', () => ({
+      colunas:['Mês','Procedimentos realizados','Variação vs. mês anterior'],
+      linhas:data.network.prodMensal.map(x=>[MSHORT[x.mes], fmt(x.valor), x.varPct==null?'—':(x.varPct>0?'+':'')+x.varPct.toFixed(1)+'%'])
+    }));
   }
 
   // ========================================================
@@ -495,12 +607,11 @@
         </div>
       </div>
       <div class="grid-2">
-        <div class="card"><div class="card-title">Composição da produção por unidade</div><div class="card-sub">Participação de cada tipo de procedimento dentro da unidade. Clique na legenda para ocultar ou destacar um tipo.</div><div class="chart" id="ch-composicao"></div></div>
-        <div class="card"><div class="card-title">Principais procedimentos da rede</div><div class="card-sub">Top ${mixTop.length} por volume</div><div class="chart" id="ch-mix"></div></div>
+        <div class="card">${cardHead('Composição da produção por unidade','Participação de cada tipo de procedimento dentro da unidade. Clique na legenda para ocultar ou destacar um tipo.','ch-composicao', false)}<div class="chart" id="ch-composicao"></div></div>
+        <div class="card">${cardHead('Principais procedimentos da rede',`Top ${mixTop.length} por volume`,'ch-mix')}<div class="chart" id="ch-mix"></div></div>
       </div>
       <div class="card" style="margin-top:16px">
-        <div class="card-title">Evolução mensal por unidade</div>
-        <div class="card-sub">Produção por mês. Clique na legenda para ocultar unidades e comparar só as que quiser.</div>
+        ${cardHead('Evolução mensal por unidade','Produção por mês. Clique na legenda para ocultar unidades e comparar só as que quiser.','ch-evolucao', false)}
         <div class="chart" id="ch-evolucao" style="height:360px"></div>
       </div>`;
 
@@ -508,6 +619,7 @@
     const estado = { modo: 'realizado' };
     setTimeout(()=>{
       chartComposicao(data, estado); chartMix(data, estado); chartEvolucao(data, estado);
+      wireCardTools(s);
       const seg = $('#seg-prod', s);
       if (seg) seg.querySelectorAll('.seg-op').forEach(b => b.onclick = () => {
         estado.modo = b.dataset.modo;
@@ -532,6 +644,7 @@
     const ch = echarts.init(dom);
     ch.setOption(buildOption());
     prodCharts[id] = ch;
+    CHART_INST[id] = ch;
     REG.push({ ch, buildOption });
   }
 
@@ -601,6 +714,10 @@
       series:[{type:'bar',barWidth:'60%',data:rows.map((m,i)=>({value:m.v,itemStyle:{color:i===rows.length-1?c.azul:c.azul300,borderRadius:[0,5,5,0]}})),
         label:{show:true,position:'right',formatter:p=>fmt(p.value),color:c.axis,fontSize:11}}]
     };});
+    regTable('ch-mix', () => ({
+      colunas:['Procedimento', estado.modo==='tabulado'?'Tabulado':'Realizado'],
+      linhas:[...rows].reverse().map(m=>[m.desc, fmt(m.v)])
+    }));
   }
 
   function chartEvolucao(data, estado) {
@@ -664,8 +781,11 @@
       </div>
       <div class="sem-grid">${cards}</div>
       <div class="card" style="margin-top:16px">
-        <div class="card-title">Realizado x Tabulado por unidade</div>
-        <div class="card-sub">Soma dos meses com tabulação disponível. Clique na legenda para isolar Realizado ou Tabulado.</div>
+        ${cardHead('Evolução mensal da taxa de tabulação','Percentual da produção que chegou ao sistema, mês a mês. Mostra se o registro está melhorando ou piorando. Clique na legenda para isolar uma unidade.','ch-taxatempo', false)}
+        <div class="chart" id="ch-taxatempo"></div>
+      </div>
+      <div class="card" style="margin-top:16px">
+        ${cardHead('Realizado x Tabulado por unidade','Soma dos meses com tabulação disponível. Clique na legenda para isolar Realizado ou Tabulado.','ch-realxtab', false)}
         <div class="chart" id="ch-realxtab"></div>
       </div>
       <div class="card" style="margin-top:16px">
@@ -674,8 +794,31 @@
         <div id="perdas-wrap"></div>
       </div>
     `;
-    setTimeout(()=>{ chartRealxTab(data, caps); renderPerdas(data, caps); },0);
+    setTimeout(()=>{ chartTaxaTempo(data, caps); chartRealxTab(data, caps); renderPerdas(data, caps); wireCardTools(s); },0);
     return s;
+  }
+
+  // Evolução mensal da taxa de tabulação por unidade (série temporal)
+  function chartTaxaTempo(data, caps) {
+    const dom=$('#ch-taxatempo'); if(!dom)return;
+    // eixo = união dos meses com TAB de todas as unidades CAPS
+    const meses = MONTHS.filter(m => caps.some(u=>u.tabMonths.includes(m)));
+    regChart(dom, () => { const c = chartTheme();
+      const series = caps.map((u,i)=>({
+        name:u.name, type:'line', smooth:true, symbol:'circle', symbolSize:6, connectNulls:true,
+        lineStyle:{width:2.6}, itemStyle:{color:PAL[i%PAL.length]}, emphasis:{focus:'series'},
+        data: meses.map(m => { const row = u.taxaMensal.find(x=>x.mes===m); return row && row.taxa!=null ? +row.taxa.toFixed(1) : null; })
+      }));
+      return {
+        color:PAL,
+        grid:{left:8,right:16,top:40,bottom:8,containLabel:true},
+        tooltip:tipBase(c,{trigger:'axis',valueFormatter:v=>v==null?'—':v.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+'%'}),
+        legend:{top:0,textStyle:{color:c.axis,fontSize:11.5},itemWidth:14,itemHeight:8},
+        xAxis:{type:'category',data:meses.map(m=>MSHORT[m]),axisLine:{lineStyle:{color:c.line}},axisLabel:{color:c.axis}},
+        yAxis:{type:'value',min:0,max:100,axisLabel:{formatter:v=>v+'%',color:c.axis},splitLine:{lineStyle:{color:c.grid}}},
+        series
+      };
+    });
   }
 
   function chartRealxTab(data, caps) {
@@ -716,13 +859,19 @@
         perdas.forEach(p => corpo += `<li><span>${p.code} ${p.desc}</span><b class="num">${fmt(p.real)} - ${fmt(p.tab)} = ${fmt(p.gap)} (${pct(p.taxa)})</b></li>`);
         corpo += `</ul></div>`;
       }
+      // frase acionável: quanto a taxa DESTA unidade subiria se o que está sem
+      // tabulação fosse lançado (não compara com outras unidades)
+      let acionavel = '';
+      if (u.recuperavel>0 && u.taxaPotencial!=null && u.taxaGeral!=null && u.taxaPotencial - u.taxaGeral >= 0.1) {
+        acionavel = `<div class="perda-acao">${ICON.target} Lançando a produção hoje sem registro (${fmt(u.recuperavel)} procedimentos), a taxa de tabulação desta unidade passaria de <strong>${pct(u.taxaGeral)}</strong> para <strong>${pct(u.taxaPotencial)}</strong>.</div>`;
+      }
       const resumo = naoTab.length ? `${naoTab.length} sem tabulação` : '';
       block.innerHTML = `
         <button class="perda-head${aberto?' aberto':''}" type="button" aria-expanded="${aberto}">
           <span class="perda-titulo">${u.name}${resumo?` <span class="perda-contagem">${resumo}</span>`:''}</span>
           <span class="perda-chevron">${ICON.chevron}</span>
         </button>
-        <div class="perda-corpo"${aberto?'':' hidden'}>${corpo}</div>`;
+        <div class="perda-corpo"${aberto?'':' hidden'}>${acionavel}${corpo}</div>`;
       const btn = block.querySelector('.perda-head');
       const corpoEl = block.querySelector('.perda-corpo');
       btn.onclick = () => {
@@ -746,12 +895,28 @@
       const linhas = data.network.tabGtList.map(r =>
         `<tr><td>${r.unidade}</td><td>${r.code} ${r.desc}</td><td>${MSHORT[r.mes]}</td><td class="num">${fmt(r.real)}</td><td class="num">${fmt(r.tab)}</td><td class="num qa-gap">+${fmt(r.tab-r.real)}</td></tr>`
       ).join('');
+      // agregação: em quais procedimentos esse padrão se concentra
+      const aggTop = data.network.tabGtAgg.slice(0,3).map(x=>`${x.desc} (${x.ocorrencias}x)`).join(', ');
       itens.push({ kind:'warn',
         titulo:`${data.network.tabGtCount} registros com Tabulado maior que Realizado`,
-        desc:'Possível diferença de competência entre produção e tabulação. A investigar.',
+        desc:`Possível diferença de competência entre produção e tabulação (algo lançado num mês mas realizado em outro). Concentra-se em: ${aggTop}.`,
         btnLabel:`Ver os ${data.network.tabGtCount} registros`,
         detail:`<div class="qa-tablewrap"><table class="qa-table">
             <thead><tr><th>Unidade</th><th>Procedimento</th><th>Mês</th><th>Realizado</th><th>Tabulado</th><th>Diferença</th></tr></thead>
+            <tbody>${linhas}</tbody></table></div>` });
+    }
+
+    // conferência: total digitado na planilha x total recalculado das células
+    if (data.network.conferencia && data.network.conferencia.length) {
+      const linhas = data.network.conferencia.map(c =>
+        `<tr><td>${c.unidade}</td><td class="num">${fmt(c.recalc)}</td><td class="num">${fmt(c.digitado)}</td><td class="num qa-gap">${c.dif>0?'+':''}${fmt(c.dif)}</td></tr>`
+      ).join('');
+      itens.push({ kind:'info',
+        titulo:`${data.network.conferencia.length} unidades com TOTAL da planilha diferente do recalculado`,
+        desc:'O painel recalcula os totais a partir das células (só Realizado). O TOTAL digitado na planilha costuma ser maior porque soma Realizado + Tabulado. Vale conferir a fórmula da planilha de origem.',
+        btnLabel:'Ver a conferência',
+        detail:`<div class="qa-tablewrap"><table class="qa-table">
+            <thead><tr><th>Unidade</th><th>Recalculado (Realizado)</th><th>TOTAL digitado</th><th>Diferença</th></tr></thead>
             <tbody>${linhas}</tbody></table></div>` });
     }
 
@@ -830,8 +995,8 @@
 
     // 3. concentração do cuidado
     const top2 = data.network.mix.slice(0,2);
-    const top2share = 100*top2.reduce((a,m)=>a+m.real,0)/data.network.totalReal;
-    cards.push(['info', ICON.activity, 'Produção concentrada em atendimentos diretos',
+    const top2share = data.network.totalReal>0 ? 100*top2.reduce((a,m)=>a+m.real,0)/data.network.totalReal : 0;
+    if (top2.length) cards.push(['info', ICON.activity, 'Produção concentrada em atendimentos diretos',
       `${top2.map(m=>m.desc.toLowerCase()).join(' e ')} respondem por ${pct(top2share)} da produção da rede, refletindo o foco em atendimento individual e familiar.`]);
 
     // 4. tendência de produção
@@ -847,6 +1012,15 @@
     const baixa = data.units.filter(u=>u.totalReal>0 && u.totalReal<100).sort((a,b)=>a.totalReal-b.totalReal)[0];
     if (baixa) cards.push(['warn', ICON.alert, `Volume muito baixo: ${baixa.name}`,
       `Apenas ${fmt(baixa.totalReal)} procedimentos em todo o período. Avaliar se há subutilização do serviço ou subnotificação da produção.`]);
+
+    // 6. queda mensal acentuada (variação da produção da rede)
+    const q = data.network.maiorQueda;
+    if (q && q.varPct <= -15) cards.push(['warn', ICON.trendingDown, `Queda de produção em ${MSHORT[q.mes]}`,
+      `A produção da rede caiu ${q.varPct.toFixed(1)}% em ${MSHORT[q.mes]} ante o mês anterior. Vale verificar se foi sazonalidade (feriados, férias) ou subnotificação da produção.`]);
+
+    // ordena por severidade: crítico > atenção > positivo/informativo
+    const ordem = { crit:0, warn:1, ok:2, info:3 };
+    cards.sort((a,b)=> (ordem[a[0]]??9) - (ordem[b[0]]??9));
 
     s.innerHTML = `
       <div class="bloco-head">
@@ -875,10 +1049,13 @@
   // registro de gráficos: guarda instância + função que gera a option,
   // permitindo redesenhar ao trocar de tema.
   const REG = [];
+  const CHART_INST = {};   // id do container -> instância ECharts
+  const CHART_TABLE = {};  // id do container -> () => { titulo, colunas, linhas }
   function regChart(dom, buildOption) {
     const ch = echarts.init(dom);
     ch.setOption(buildOption());
     REG.push({ ch, buildOption });
+    if (dom && dom.id) CHART_INST[dom.id] = ch;
     return ch;
   }
   function renderAllCharts() {
@@ -886,22 +1063,67 @@
   }
   window.addEventListener('resize', () => REG.forEach(r => r.ch.resize()));
 
+  // ---- ferramentas do card de gráfico: baixar imagem + ver tabela (acessível) ----
+  // HTML dos botões (colocado ao lado do título do card)
+  function cardTools(chartId, comTabela) {
+    return `<div class="card-tools">
+      ${comTabela?`<button class="card-tool" type="button" data-tabela="${chartId}" aria-label="Ver dados em tabela" title="Ver dados em tabela">${ICON.table}</button>`:''}
+      <button class="card-tool" type="button" data-baixar="${chartId}" aria-label="Baixar gráfico como imagem" title="Baixar imagem (PNG)">${ICON.download}</button>
+    </div>`;
+  }
+  // registra a função que gera a tabela equivalente de um gráfico
+  function regTable(chartId, fn) { CHART_TABLE[chartId] = fn; }
+  // liga os botões de ferramentas dentro de um elemento raiz
+  function wireCardTools(root) {
+    (root||document).querySelectorAll('[data-baixar]').forEach(btn => {
+      btn.onclick = () => {
+        const id = btn.dataset.baixar, ch = CHART_INST[id];
+        if (!ch) return;
+        const bg = getComputedStyle(document.documentElement).getPropertyValue('--branco').trim() || '#fff';
+        const url = ch.getDataURL({ type:'png', pixelRatio:2, backgroundColor:bg });
+        const a = document.createElement('a'); a.href = url; a.download = id.replace(/^ch-/,'grafico-')+'.png'; a.click();
+      };
+    });
+    (root||document).querySelectorAll('[data-tabela]').forEach(btn => {
+      btn.onclick = () => {
+        const id = btn.dataset.tabela;
+        const card = btn.closest('.card');
+        let det = card.querySelector('.chart-tabela');
+        if (det) { const vis = det.hasAttribute('hidden'); det.toggleAttribute('hidden', !vis); return; }
+        const fn = CHART_TABLE[id]; if (!fn) return;
+        const t = fn();
+        const thead = `<tr>${t.colunas.map(c=>`<th>${c}</th>`).join('')}</tr>`;
+        const tbody = t.linhas.map(ln=>`<tr>${ln.map((c,i)=>`<td${i>0?' class="num"':''}>${c}</td>`).join('')}</tr>`).join('');
+        det = el('div','chart-tabela');
+        det.innerHTML = `<div class="qa-tablewrap"><table class="qa-table"><thead>${thead}</thead><tbody>${tbody}</tbody></table></div>`;
+        card.appendChild(det);
+      };
+    });
+  }
+
   // ========================================================
   //  UPLOAD
   // ========================================================
   function handleFile(file) {
+    const box = $('#validacao');
+    box.classList.add('show');
+    box.innerHTML = `<div class="carregando"><span class="spinner" aria-hidden="true"></span><span>Lendo e analisando a planilha...</span></div>`;
     const reader = new FileReader();
     reader.onload = e => {
-      try {
-        const wb = XLSX.read(new Uint8Array(e.target.result), { type:'array' });
-        const data = parseWorkbook(wb);
-        if (data.units.length) computeMetrics(data);
-        renderValidation(data);
-      } catch (err) {
-        const box = $('#validacao'); box.classList.add('show'); box.innerHTML='';
-        addVal(box,'err','Não foi possível ler o arquivo. Verifique se é um .xlsx válido. ('+err.message+')');
-      }
+      // setTimeout dá ao navegador a chance de pintar o spinner antes do parse
+      setTimeout(() => {
+        try {
+          const wb = XLSX.read(new Uint8Array(e.target.result), { type:'array' });
+          const data = parseWorkbook(wb);
+          if (data.units.length) computeMetrics(data);
+          renderValidation(data);
+        } catch (err) {
+          box.classList.add('show'); box.innerHTML='';
+          addVal(box,'err','Não foi possível ler o arquivo. Verifique se é um .xlsx válido. ('+err.message+')');
+        }
+      }, 30);
     };
+    reader.onerror = () => { box.innerHTML=''; addVal(box,'err','Falha ao ler o arquivo. Tente novamente.'); };
     reader.readAsArrayBuffer(file);
   }
 

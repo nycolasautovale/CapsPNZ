@@ -58,8 +58,8 @@
   --vermelho-050:#331a19;
 
   --tinta:       #e9eef6;   /* texto principal */
-  --tinta-600:   #a9b6c9;   /* texto secundário */
-  --tinta-400:   #7d8ba3;
+  --tinta-600:   #b4c0d2;   /* texto secundário (contraste melhorado) */
+  --tinta-400:   #93a1b8;   /* terciário (contraste melhorado p/ WCAG AA) */
   --linha:       #22304a;
   --linha-forte: #33425f;
   --fundo:       #0d1526;
@@ -421,6 +421,60 @@ section.bloco { margin-bottom: 56px; scroll-margin-top: 80px; }
 
 footer.rodape { border-top: 1px solid var(--linha); padding: 22px 0; font-size: 12px; color: var(--tinta-400); text-align: center; }
 
+/* ---------------- COMPONENTES NOVOS (melhorias) ---------------- */
+
+/* botão de ação na topbar (imprimir/PDF) — mesmo estilo do tema */
+.tb-acao {
+  margin-left: auto; flex: 0 0 auto;
+  width: 38px; height: 38px; border-radius: 9px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: transparent; border: 1px solid var(--linha-forte);
+  color: var(--tinta-600); cursor: pointer;
+  transition: background .15s, color .15s, border-color .15s;
+}
+.tb-acao:hover { background: var(--azul-050); color: var(--azul); border-color: var(--azul-300); }
+.tb-acao svg { display: block; }
+.tb-acao + .tema-btn { margin-left: 10px; }
+/* quando há botão de ação, o período não precisa empurrar sozinho */
+.topbar .tb-period { margin-left: auto; }
+.topbar .tb-period + .tb-acao { margin-left: 14px; }
+
+/* estado de carregamento (upload) */
+.carregando { display: flex; align-items: center; gap: 10px; font-size: 13.5px; color: var(--tinta-600); padding: 8px 0; }
+.spinner { width: 18px; height: 18px; border-radius: 50%; border: 2.5px solid var(--linha-forte); border-top-color: var(--azul); animation: girar .7s linear infinite; flex: 0 0 auto; }
+@keyframes girar { to { transform: rotate(360deg); } }
+
+/* sumário executivo na capa */
+.sumario { background: var(--branco); border: 1px solid var(--linha); border-radius: var(--raio); box-shadow: var(--sombra-sm); padding: 20px 24px; margin-top: 16px; }
+.sumario-head { display: flex; align-items: center; gap: 9px; font-size: 13px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--azul); margin-bottom: 12px; }
+.sumario-head svg { width: 18px; height: 18px; }
+.sumario ul { list-style: none; display: flex; flex-direction: column; gap: 9px; }
+.sumario li { font-size: 14.5px; line-height: 1.55; color: var(--tinta-600); padding-left: 18px; position: relative; }
+.sumario li::before { content: ''; position: absolute; left: 0; top: 9px; width: 6px; height: 6px; border-radius: 50%; background: var(--azul-300); }
+.sumario li strong { color: var(--tinta); font-weight: 600; }
+
+/* cabeçalho de card de gráfico com ferramentas */
+.card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+.card-head .card-title { margin-bottom: 3px; }
+.card-head .card-sub { margin-bottom: 0; }
+.card-tools { display: flex; gap: 6px; flex: 0 0 auto; }
+.card-tool {
+  width: 30px; height: 30px; border-radius: 8px; flex: 0 0 auto;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: transparent; border: 1px solid var(--linha); color: var(--tinta-400);
+  cursor: pointer; transition: background .15s, color .15s, border-color .15s;
+}
+.card-tool:hover { background: var(--azul-050); color: var(--azul); border-color: var(--azul-300); }
+.card-tool svg { display: block; }
+
+/* tabela equivalente de um gráfico (acessibilidade) */
+.chart-tabela { margin-top: 14px; }
+
+/* frase acionável nas perdas */
+.perda-acao { display: flex; align-items: flex-start; gap: 9px; background: var(--ambar-050); border: 1px solid var(--ambar); border-radius: var(--raio-sm); padding: 11px 14px; margin-bottom: 12px; font-size: 13.5px; color: var(--tinta-600); }
+.perda-acao svg { width: 18px; height: 18px; color: var(--ambar); flex: 0 0 auto; margin-top: 1px; }
+.perda-acao strong { color: var(--tinta); font-weight: 700; }
+
 /* ===================== RESPONSIVO ===================== */
 @media (max-width: 920px) {
   .layout { grid-template-columns: 1fr; gap: 0; }
@@ -494,11 +548,15 @@ footer.rodape { border-top: 1px solid var(--linha); padding: 22px 0; font-size: 
 
 /* ---------------- IMPRESSÃO / PDF ---------------- */
 @media print {
-  .topbar, .indice { display: none !important; }
+  .topbar, .indice, .nav-mobile { display: none !important; }
+  .card-tools, .seg { display: none !important; }   /* ferramentas não vão para o papel */
   .layout { display: block; }
   body { background: #fff; }
   section.bloco { page-break-inside: avoid; margin-bottom: 28px; }
-  .card, .kpi, .insight, .sem-card { box-shadow: none; }
+  .card, .kpi, .insight, .sem-card, .sumario { box-shadow: none; }
   .capa { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .rec { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  /* detalhes recolhidos aparecem no PDF para registro completo */
+  .perda-corpo[hidden], .qa-detalhe[hidden], .chart-tabela[hidden] { display: block !important; }
+  .perda-chevron { display: none; }
 }

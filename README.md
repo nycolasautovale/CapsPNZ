@@ -17,15 +17,27 @@ O processamento é 100% local, no próprio navegador. Nenhum dado é enviado pel
 
 ## O que o painel mostra
 
-- **Panorama da rede** — volume total, participação por unidade e produção mensal.
+- **Capa** — com um **resumo para a gestão** (3 a 4 frases com os pontos-chave do período).
+- **Panorama da rede** — volume total, participação por unidade, produção mensal e um
+  destaque da **variação mês a mês** (maior alta e maior queda).
 - **Produção** — volume por unidade, principais procedimentos e evolução mês a mês.
-- **Realizado x Tabulado** — taxa de tabulação por unidade, calculada apenas nos meses
-  em que há dado de tabulação, e o detalhamento de onde a produção não chega ao sistema.
-- **Qualidade dos dados** — inconsistências detectadas automaticamente, de forma transparente.
-- **Insights e recomendações** — sínteses geradas a partir dos números da planilha.
+- **Realizado x Tabulado** — taxa de tabulação por unidade; a **evolução mensal dessa taxa**
+  (mostra se o registro melhora ou piora); e o detalhamento de onde a produção não chega ao
+  sistema, com o **potencial de recuperação** por unidade (quanto a taxa subiria se tudo fosse lançado).
+- **Qualidade dos dados** — inconsistências detectadas automaticamente (tabulado maior que
+  realizado, total digitado diferente do recalculado), de forma transparente.
+- **Insights e recomendações** — sínteses priorizadas por severidade, a partir dos números da planilha.
 
 O painel se adapta automaticamente à planilha: detecta as unidades (abas), os meses com
 dados e os meses com tabulação. Novas unidades ou novos meses entram sem alteração no código.
+
+## Recursos de uso
+
+- **Imprimir / salvar em PDF** pelo botão na barra superior (layout próprio para impressão).
+- **Baixar cada gráfico como imagem (PNG)** pelo botão no canto do gráfico.
+- **Ver os dados de um gráfico em tabela** (acessibilidade), nos gráficos de série simples.
+- **Modo claro/escuro** com preferência salva no navegador.
+- O período usa o **ano corrente** do computador (a planilha não traz o ano explícito).
 
 ## Estrutura do projeto
 
