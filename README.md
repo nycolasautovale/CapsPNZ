@@ -17,7 +17,7 @@ O processamento é 100% local, no próprio navegador. Nenhum dado é enviado pel
 
 ## O que o painel mostra
 
-- **Capa** — com um **resumo para a gestão** (3 a 4 frases com os pontos-chave do período).
+- **Capa** — identidade institucional e os números-chave do período.
 - **Panorama da rede** — volume total, participação por unidade, produção mensal e um
   destaque da **variação mês a mês** (maior alta e maior queda).
 - **Produção** — volume por unidade, principais procedimentos e evolução mês a mês.

@@ -445,30 +445,8 @@
           <div><div class="l">Unidades</div><div class="v num">${data.network.nUnits}</div></div>
           <div><div class="l">Procedimentos realizados</div><div class="v num">${fmt(data.network.totalReal)}</div></div>
         </div>
-      </div>
-      ${sumarioExecutivo(data)}`;
+      </div>`;
     return s;
-  }
-
-  // Sumário executivo: 3 a 4 frases que o gestor lê em poucos segundos.
-  function sumarioExecutivo(data) {
-    const caps = data.units.filter(u=>u.hasTab);
-    const totReal = caps.reduce((a,u)=>a+u.realInTab,0);
-    const totTab  = caps.reduce((a,u)=>a+u.tabInTab,0);
-    const taxaRede = totReal>0 ? 100*totTab/totReal : null;
-    const pior = [...caps].filter(u=>u.taxaGeral!=null).sort((a,b)=>a.taxaGeral-b.taxaGeral)[0];
-    const pontos = [];
-    pontos.push(`A rede realizou <strong>${fmt(data.network.totalReal)} procedimentos</strong> em <strong>${data.network.months.length} meses</strong> de produção, distribuídos entre <strong>${data.network.nUnits} unidades</strong>.`);
-    if (taxaRede!=null)
-      pontos.push(`Nos meses com dado de tabulação, <strong>${pct(taxaRede)}</strong> da produção das unidades CAPS chegou ao sistema; o restante foi realizado mas não registrado.`);
-    if (pior && pior.taxaGeral!=null && pior.taxaGeral<50)
-      pontos.push(`O principal ponto de atenção é a tabulação no <strong>${pior.name}</strong> (<strong>${pct(pior.taxaGeral)}</strong>), a menor taxa da rede.`);
-    if (data.network.tabGtCount>0)
-      pontos.push(`Há <strong>${data.network.tabGtCount} registros</strong> com tabulado maior que realizado, sinalizados para conferência na seção Qualidade dos dados.`);
-    return `<div class="sumario">
-      <div class="sumario-head">${ICON.bulb} Resumo para a gestão</div>
-      <ul>${pontos.map(p=>`<li>${p}</li>`).join('')}</ul>
-    </div>`;
   }
 
   // ---- Seção: Panorama ----

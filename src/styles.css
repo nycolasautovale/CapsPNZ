@@ -444,15 +444,6 @@ footer.rodape { border-top: 1px solid var(--linha); padding: 22px 0; font-size: 
 .spinner { width: 18px; height: 18px; border-radius: 50%; border: 2.5px solid var(--linha-forte); border-top-color: var(--azul); animation: girar .7s linear infinite; flex: 0 0 auto; }
 @keyframes girar { to { transform: rotate(360deg); } }
 
-/* sumário executivo na capa */
-.sumario { background: var(--branco); border: 1px solid var(--linha); border-radius: var(--raio); box-shadow: var(--sombra-sm); padding: 20px 24px; margin-top: 16px; }
-.sumario-head { display: flex; align-items: center; gap: 9px; font-size: 13px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--azul); margin-bottom: 12px; }
-.sumario-head svg { width: 18px; height: 18px; }
-.sumario ul { list-style: none; display: flex; flex-direction: column; gap: 9px; }
-.sumario li { font-size: 14.5px; line-height: 1.55; color: var(--tinta-600); padding-left: 18px; position: relative; }
-.sumario li::before { content: ''; position: absolute; left: 0; top: 9px; width: 6px; height: 6px; border-radius: 50%; background: var(--azul-300); }
-.sumario li strong { color: var(--tinta); font-weight: 600; }
-
 /* cabeçalho de card de gráfico com ferramentas */
 .card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
 .card-head .card-title { margin-bottom: 3px; }
@@ -553,7 +544,7 @@ footer.rodape { border-top: 1px solid var(--linha); padding: 22px 0; font-size: 
   .layout { display: block; }
   body { background: #fff; }
   section.bloco { page-break-inside: avoid; margin-bottom: 28px; }
-  .card, .kpi, .insight, .sem-card, .sumario { box-shadow: none; }
+  .card, .kpi, .insight, .sem-card { box-shadow: none; }
   .capa { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .rec { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   /* detalhes recolhidos aparecem no PDF para registro completo */

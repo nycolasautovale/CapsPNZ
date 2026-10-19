@@ -450,15 +450,6 @@ footer.rodape { border-top: 1px solid var(--linha); padding: 22px 0; font-size: 
 .spinner { width: 18px; height: 18px; border-radius: 50%; border: 2.5px solid var(--linha-forte); border-top-color: var(--azul); animation: girar .7s linear infinite; flex: 0 0 auto; }
 @keyframes girar { to { transform: rotate(360deg); } }
 
-/* sumário executivo na capa */
-.sumario { background: var(--branco); border: 1px solid var(--linha); border-radius: var(--raio); box-shadow: var(--sombra-sm); padding: 20px 24px; margin-top: 16px; }
-.sumario-head { display: flex; align-items: center; gap: 9px; font-size: 13px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--azul); margin-bottom: 12px; }
-.sumario-head svg { width: 18px; height: 18px; }
-.sumario ul { list-style: none; display: flex; flex-direction: column; gap: 9px; }
-.sumario li { font-size: 14.5px; line-height: 1.55; color: var(--tinta-600); padding-left: 18px; position: relative; }
-.sumario li::before { content: ''; position: absolute; left: 0; top: 9px; width: 6px; height: 6px; border-radius: 50%; background: var(--azul-300); }
-.sumario li strong { color: var(--tinta); font-weight: 600; }
-
 /* cabeçalho de card de gráfico com ferramentas */
 .card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
 .card-head .card-title { margin-bottom: 3px; }
@@ -559,7 +550,7 @@ footer.rodape { border-top: 1px solid var(--linha); padding: 22px 0; font-size: 
   .layout { display: block; }
   body { background: #fff; }
   section.bloco { page-break-inside: avoid; margin-bottom: 28px; }
-  .card, .kpi, .insight, .sem-card, .sumario { box-shadow: none; }
+  .card, .kpi, .insight, .sem-card { box-shadow: none; }
   .capa { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .rec { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   /* detalhes recolhidos aparecem no PDF para registro completo */
@@ -1144,30 +1135,8 @@ const ICON = {
           <div><div class="l">Unidades</div><div class="v num">${data.network.nUnits}</div></div>
           <div><div class="l">Procedimentos realizados</div><div class="v num">${fmt(data.network.totalReal)}</div></div>
         </div>
-      </div>
-      ${sumarioExecutivo(data)}`;
+      </div>`;
     return s;
-  }
-
-  // Sumário executivo: 3 a 4 frases que o gestor lê em poucos segundos.
-  function sumarioExecutivo(data) {
-    const caps = data.units.filter(u=>u.hasTab);
-    const totReal = caps.reduce((a,u)=>a+u.realInTab,0);
-    const totTab  = caps.reduce((a,u)=>a+u.tabInTab,0);
-    const taxaRede = totReal>0 ? 100*totTab/totReal : null;
-    const pior = [...caps].filter(u=>u.taxaGeral!=null).sort((a,b)=>a.taxaGeral-b.taxaGeral)[0];
-    const pontos = [];
-    pontos.push(`A rede realizou <strong>${fmt(data.network.totalReal)} procedimentos</strong> em <strong>${data.network.months.length} meses</strong> de produção, distribuídos entre <strong>${data.network.nUnits} unidades</strong>.`);
-    if (taxaRede!=null)
-      pontos.push(`Nos meses com dado de tabulação, <strong>${pct(taxaRede)}</strong> da produção das unidades CAPS chegou ao sistema; o restante foi realizado mas não registrado.`);
-    if (pior && pior.taxaGeral!=null && pior.taxaGeral<50)
-      pontos.push(`O principal ponto de atenção é a tabulação no <strong>${pior.name}</strong> (<strong>${pct(pior.taxaGeral)}</strong>), a menor taxa da rede.`);
-    if (data.network.tabGtCount>0)
-      pontos.push(`Há <strong>${data.network.tabGtCount} registros</strong> com tabulado maior que realizado, sinalizados para conferência na seção Qualidade dos dados.`);
-    return `<div class="sumario">
-      <div class="sumario-head">${ICON.bulb} Resumo para a gestão</div>
-      <ul>${pontos.map(p=>`<li>${p}</li>`).join('')}</ul>
-    </div>`;
   }
 
   // ---- Seção: Panorama ----
