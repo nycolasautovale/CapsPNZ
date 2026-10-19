@@ -39,6 +39,8 @@
   --grid-line: #eef2f7;
   --chart-axis: #45586b;
   --dropzone-hover: #e7edfb;
+  --tip-bg: #15202e;      /* fundo do tooltip de ajuda (escuro nos dois temas) */
+  --tip-fg: #ffffff;
 }
 
 /* ===================== MODO ESCURO ===================== */
@@ -72,6 +74,8 @@
   --grid-line: #1e2b43;
   --chart-axis: #a9b6c9;
   --dropzone-hover: #1f2d49;
+  --tip-bg: #26334d;      /* fundo do tooltip no escuro (um tom acima da superfície) */
+  --tip-fg: #eef2fb;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -274,7 +278,7 @@ section.bloco { margin-bottom: 56px; scroll-margin-top: 80px; }
   content: attr(data-tip);
   position: absolute; top: calc(100% + 8px); right: -4px; z-index: 30;
   width: 232px; padding: 10px 12px;
-  background: var(--tinta); color: #fff;
+  background: var(--tip-bg); color: var(--tip-fg);
   border-radius: 9px; font-size: 12px; font-weight: 400; line-height: 1.45;
   text-align: left; letter-spacing: 0;
   box-shadow: var(--sombra-md);
@@ -349,7 +353,7 @@ section.bloco { margin-bottom: 56px; scroll-margin-top: 80px; }
   content: attr(data-tip);
   position: absolute; top: calc(100% + 8px); right: -4px; z-index: 30;
   width: 240px; padding: 10px 12px;
-  background: var(--tinta); color: #fff;
+  background: var(--tip-bg); color: var(--tip-fg);
   border-radius: 9px; font-size: 12px; font-weight: 400; line-height: 1.45; text-align: left;
   box-shadow: var(--sombra-md);
   opacity: 0; visibility: hidden; transform: translateY(-3px);
