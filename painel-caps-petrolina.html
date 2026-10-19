@@ -1362,7 +1362,7 @@ const ICON = {
       yAxis:{type:'category',data:rows.map(u=>u.name),axisLabel:{fontSize:12,color:c.axis},axisTick:{show:false},axisLine:{lineStyle:{color:c.line}}},
       series:[{type:'bar',barWidth:'55%',
         emphasis:{ itemStyle:{ color:c.barHover, shadowBlur:14, shadowColor:hexA(c.azul,.45) } },
-        data:rows.map(u=>({value:u.totalReal,itemStyle:{color:c.azul,borderRadius:[0,5,5,0]}})),
+        data:rows.map(u=>({value:u.totalReal,itemStyle:{color:PAL[0],borderRadius:[0,5,5,0]}})),
         label:{show:true,position:'right',formatter:p=>fmt(p.value),color:c.axis,fontSize:11.5}}]
     };});
     regTable('ch-participacao', () => ({
@@ -1516,8 +1516,8 @@ const ICON = {
       xAxis:{type:'value',show:false,max:v=>v.max*1.12},
       yAxis:{type:'category',data:rows.map(m=>m.desc),axisLabel:{color:c.axis,fontSize:11,width:150,overflow:'truncate'},axisTick:{show:false},axisLine:{lineStyle:{color:c.line}}},
       series:[{type:'bar',barWidth:'60%',
-        // todas as barras com a MESMA cor; o destaque aparece só no hover
-        itemStyle:{ color:c.azul300, borderRadius:[0,5,5,0] },
+        // mesma cor azul institucional da Composição (PAL[0]); destaque só no hover
+        itemStyle:{ color:PAL[0], borderRadius:[0,5,5,0] },
         emphasis:{ itemStyle:{ color:c.barHover, shadowBlur:14, shadowColor:hexA(c.azul,.45) } },
         data:rows.map(m=>({value:m.v})),
         label:{show:true,position:'right',formatter:p=>fmt(p.value),color:c.axis,fontSize:11}}]
