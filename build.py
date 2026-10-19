@@ -6,6 +6,8 @@ ROOT = pathlib.Path(__file__).parent
 def read(p): return (ROOT/p).read_text(encoding="utf-8")
 def b64img(p): return "data:image/png;base64," + base64.b64encode((ROOT/p).read_bytes()).decode()
 
+def b64font(p): return "data:font/woff2;base64," + base64.b64encode((ROOT/p).read_bytes()).decode()
+
 shell   = read("src/shell.html")
 css     = read("src/styles.css")
 icons   = read("src/icons.js")
@@ -14,9 +16,13 @@ xlsx    = read("vendor/xlsx.full.min.js")
 echarts = read("vendor/echarts.min.js")
 brasao  = b64img("assets/image2.png")
 saude   = b64img("assets/image1.png")
+font_inter = b64font("vendor/fonts/inter.woff2")
+font_sora  = b64font("vendor/fonts/sora.woff2")
 
 out = (shell
     .replace("__CSS__", css)
+    .replace("__FONT_INTER__", font_inter)
+    .replace("__FONT_SORA__", font_sora)
     .replace("__ICONS__", icons)
     .replace("__APP__", app)
     .replace("__XLSX__", xlsx)

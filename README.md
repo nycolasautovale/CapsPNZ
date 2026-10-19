@@ -50,6 +50,7 @@ src/                         Código-fonte do painel
   icons.js                   Ícones (SVG)
 build.py                     Gera o painel-caps-petrolina.html a partir de src/ e vendor/
 vendor/                      Bibliotecas de terceiros (leitura de Excel e gráficos)
+  fonts/                     Fontes (Sora e Inter) embutidas no build, para 100% offline
 assets/                      Logos institucionais
 data/                        Planilha de exemplo
 test/                        Testes do motor de dados

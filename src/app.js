@@ -16,8 +16,8 @@
     'UAA':'Unidade de Acolhimento Adulto', 'UAI':'Unidade de Acolhimento Infantojuvenil'
   };
 
-  // paleta para séries
-  const PAL = ['#123a8f','#d23a34','#efb93c','#2f9e5f','#4f73c4','#9b59b6','#e08a1e'];
+  // paleta para séries (harmônica, alinhada à identidade: azul + teal de acento)
+  const PAL = ['#1b4aa6','#0e9e8f','#e0a52e','#c23b57','#5b7fc9','#7b5ea7','#2f9e5f'];
 
   // ---------- util ----------
   const $ = (s, r) => (r||document).querySelector(s);
