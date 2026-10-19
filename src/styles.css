@@ -338,9 +338,10 @@ section.bloco { margin-bottom: 56px; scroll-margin-top: 80px; }
 /* ---------------- SEMÁFORO DE TABULAÇÃO ---------------- */
 .sem-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
 .sem-card { padding: 18px 20px; }
-.sem-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+/* altura mínima = 2 linhas do nome, para alinhar a % entre cartões com nome de 1 ou 2 linhas */
+.sem-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; min-height: 40px; }
 .sem-top-right { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
-.sem-nome { font-size: 14px; font-weight: 700; }
+.sem-nome { font-size: 14px; font-weight: 700; line-height: 1.25; }
 .sem-info {
   width: 20px; height: 20px; border-radius: 6px; flex: 0 0 auto;
   display: inline-flex; align-items: center; justify-content: center;
