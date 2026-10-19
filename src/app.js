@@ -524,10 +524,13 @@
     const rows = [...data.units].sort((a,b)=>a.totalReal-b.totalReal);
     regChart(dom, () => { const c = chartTheme(); return {
       grid:{left:8,right:70,top:10,bottom:10,containLabel:true},
-      tooltip:tipBase(c,{trigger:'axis',axisPointer:axisShadow(c),valueFormatter:v=>fmt(v)+' proc.'}),
+      // sem tooltip: nome e valor já estão visíveis. Hover só realça a barra.
+      tooltip:{ show:false },
       xAxis:{type:'value',show:false,max:v=>v.max*1.12},
       yAxis:{type:'category',data:rows.map(u=>u.name),axisLabel:{fontSize:12,color:c.axis},axisTick:{show:false},axisLine:{lineStyle:{color:c.line}}},
-      series:[{type:'bar',data:rows.map(u=>({value:u.totalReal,itemStyle:{color:c.azul,borderRadius:[0,5,5,0]}})),barWidth:'55%',
+      series:[{type:'bar',barWidth:'55%',
+        emphasis:{ itemStyle:{ shadowBlur:8, shadowColor:hexA(c.azul,.35) } },
+        data:rows.map(u=>({value:u.totalReal,itemStyle:{color:c.azul,borderRadius:[0,5,5,0]}})),
         label:{show:true,position:'right',formatter:p=>fmt(p.value),color:c.axis,fontSize:11.5}}]
     };});
     regTable('ch-participacao', () => ({
