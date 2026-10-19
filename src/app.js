@@ -235,13 +235,14 @@
         data.alerts.push({ nivel:'warn', unidade:u.name,
           texto:`Volume de produção muito baixo (${fmt(u.totalReal)} no período). Verificar subutilização ou subnotificação.` });
     });
-    // TAB > Realizado (contagem global)
-    let tabGt = 0;
+    // TAB > Realizado: contagem + lista detalhada dos registros
+    const tabGtList = [];
     data.units.forEach(u => u.procedures.forEach(p => MONTHS.forEach(m => {
       const r=p.realizado[m], t=p.tab[m];
-      if (r!=null && t!=null && t>r) tabGt++;
+      if (r!=null && t!=null && t>r) tabGtList.push({ unidade:u.name, code:p.code, desc:shortDesc(p.desc), mes:m, real:r, tab:t });
     })));
-    data.network.tabGtCount = tabGt;
+    data.network.tabGtCount = tabGtList.length;
+    data.network.tabGtList = tabGtList;
   }
 
   function sumObj(o){ return Object.values(o).reduce((a,b)=>a+b,0); }
@@ -405,10 +406,14 @@
         <p class="bloco-lede">A rede realizou <strong>${fmt(totalReal)} procedimentos</strong> no período. A unidade de maior volume é o <strong>${topUnit.name}</strong>. Entre os meses com dado de tabulação, apenas <strong>${pct(taxaRede)}</strong> da produção das unidades CAPS chegou ao sistema.</p>
       </div>
       <div class="kpis">
-        <div class="kpi"><div class="kpi-ico">${ICON.activity}</div><div class="kpi-val num">${fmt(totalReal)}</div><div class="kpi-lab">Procedimentos realizados</div><div class="kpi-hint">Soma de todas as unidades</div></div>
-        <div class="kpi"><div class="kpi-ico">${ICON.building}</div><div class="kpi-val num">${data.network.nUnits}</div><div class="kpi-lab">Unidades na rede</div><div class="kpi-hint">${capsUnits.length} CAPS com tabulação</div></div>
-        <div class="kpi"><div class="kpi-ico">${ICON.percent}</div><div class="kpi-val num">${pct(taxaRede)}</div><div class="kpi-lab">Taxa de tabulação (CAPS)</div><div class="kpi-hint">Calculada só em meses com TAB</div></div>
-        <div class="kpi"><div class="kpi-ico">${ICON.calendar}</div><div class="kpi-val num">${data.network.months.length}</div><div class="kpi-lab">Meses com produção</div><div class="kpi-hint">${data.network.tabMonths.length} meses com TAB</div></div>
+        ${kpi(ICON.activity, fmt(totalReal), 'Procedimentos realizados', 'Soma de todas as unidades',
+          'Total de procedimentos efetivamente realizados pelas equipes no período, somando todas as unidades. Considera apenas o que foi feito (não inclui a tabulação).')}
+        ${kpi(ICON.building, data.network.nUnits, 'Unidades na rede', `${capsUnits.length} CAPS com tabulação`,
+          'Quantidade de unidades presentes na planilha. Dessas, as unidades CAPS possuem dados de tabulação; as unidades de acolhimento ainda não.')}
+        ${kpi(ICON.percent, pct(taxaRede), 'Taxa de tabulação (CAPS)', 'Calculada só em meses com TAB',
+          'Dos procedimentos realizados nos meses que têm tabulação, qual percentual chegou ao sistema. Calculada só no período em que Realizado e Tabulado coexistem, para ser justa.')}
+        ${kpi(ICON.calendar, data.network.months.length, 'Meses com produção', `${data.network.tabMonths.length} meses com TAB`,
+          'Número de meses com produção registrada na planilha. Ao lado, quantos desses meses já possuem dados de tabulação.')}
       </div>
       <div class="grid-2" style="margin-top:16px">
         <div class="card"><div class="card-title">Participação por unidade</div><div class="card-sub">Procedimentos realizados no período (todas as competências)</div><div class="chart" id="ch-participacao"></div></div>
@@ -420,14 +425,28 @@
     return s;
   }
 
+  // monta um cartão KPI com ícone de informação (tooltip ao passar o mouse / tocar)
+  function kpi(icon, val, lab, hint, info) {
+    return `<div class="kpi">
+      <div class="kpi-top">
+        <div class="kpi-ico">${icon}</div>
+        <button class="kpi-info" type="button" aria-label="O que é isto?" data-tip="${esc(info)}">${ICON.info}</button>
+      </div>
+      <div class="kpi-val num">${val}</div>
+      <div class="kpi-lab">${lab}</div>
+      <div class="kpi-hint">${hint}</div>
+    </div>`;
+  }
+  function esc(s){ return String(s).replace(/"/g,'&quot;'); }
+
   // ---- gráficos do Panorama ----
   function chartParticipacao(data) {
     const dom = $('#ch-participacao'); if(!dom) return;
     const rows = [...data.units].sort((a,b)=>a.totalReal-b.totalReal);
     regChart(dom, () => { const c = chartTheme(); return {
-      grid:{left:8,right:60,top:10,bottom:10,containLabel:true},
+      grid:{left:8,right:70,top:10,bottom:10,containLabel:true},
       tooltip:{trigger:'axis',axisPointer:{type:'shadow'},valueFormatter:v=>fmt(v)+' proc.'},
-      xAxis:{type:'value',axisLabel:{formatter:v=>fmt(v),color:c.axis},splitLine:{lineStyle:{color:c.grid}}},
+      xAxis:{type:'value',show:false,max:v=>v.max*1.12},
       yAxis:{type:'category',data:rows.map(u=>u.name),axisLabel:{fontSize:12,color:c.axis},axisTick:{show:false},axisLine:{lineStyle:{color:c.line}}},
       series:[{type:'bar',data:rows.map(u=>({value:u.totalReal,itemStyle:{color:c.azul,borderRadius:[0,5,5,0]}})),barWidth:'55%',
         label:{show:true,position:'right',formatter:p=>fmt(p.value),color:c.axis,fontSize:11.5}}]
@@ -461,53 +480,110 @@
       <div class="bloco-head">
         <div class="bloco-kicker">O que a rede produz</div>
         <div class="bloco-title">Produção por unidade e por tipo</div>
-        <p class="bloco-lede">Dois procedimentos concentram <strong>${pct(top2share)}</strong> de toda a produção da rede: <strong>${top2.map(m=>m.desc.toLowerCase()).join('</strong> e <strong>')}</strong>. A seguir, o volume por unidade, o mix de procedimentos e a evolução mês a mês.</p>
+        <p class="bloco-lede">Dois procedimentos concentram <strong>${pct(top2share)}</strong> de toda a produção da rede: <strong>${top2.map(m=>m.desc.toLowerCase()).join('</strong> e <strong>')}</strong>. Use o seletor para alternar entre produção realizada e tabulada.</p>
+        <div class="seg" id="seg-prod">
+          <button class="seg-op active" data-modo="realizado" type="button">Realizado</button>
+          <button class="seg-op" data-modo="tabulado" type="button">Tabulado</button>
+        </div>
       </div>
       <div class="grid-2">
-        <div class="card"><div class="card-title">Volume por unidade</div><div class="card-sub">Procedimentos realizados no período</div><div class="chart" id="ch-vol-unidade"></div></div>
-        <div class="card"><div class="card-title">Principais procedimentos da rede</div><div class="card-sub">Top ${mixTop.length} por volume realizado</div><div class="chart" id="ch-mix"></div></div>
+        <div class="card"><div class="card-title">Composição da produção por unidade</div><div class="card-sub">Participação de cada tipo de procedimento dentro da unidade</div><div class="chart" id="ch-composicao"></div></div>
+        <div class="card"><div class="card-title">Principais procedimentos da rede</div><div class="card-sub">Top ${mixTop.length} por volume</div><div class="chart" id="ch-mix"></div></div>
       </div>
       <div class="card" style="margin-top:16px">
         <div class="card-title">Evolução mensal por unidade</div>
-        <div class="card-sub">Procedimentos realizados por mês. Passe o mouse para ver os valores.</div>
+        <div class="card-sub">Produção por mês. Passe o mouse para ver os valores.</div>
         <div class="chart" id="ch-evolucao" style="height:360px"></div>
       </div>`;
-    setTimeout(()=>{ chartVolUnidade(data); chartMix(data, mixTop); chartEvolucao(data); },0);
+
+    // estado do toggle (realizado | tabulado) para esta seção
+    const estado = { modo: 'realizado' };
+    setTimeout(()=>{
+      chartComposicao(data, estado); chartMix(data, estado); chartEvolucao(data, estado);
+      const seg = $('#seg-prod', s);
+      if (seg) seg.querySelectorAll('.seg-op').forEach(b => b.onclick = () => {
+        estado.modo = b.dataset.modo;
+        seg.querySelectorAll('.seg-op').forEach(x=>x.classList.toggle('active', x===b));
+        chartComposicao(data, estado); chartMix(data, estado); chartEvolucao(data, estado);
+      });
+    },0);
     return s;
   }
 
-  function chartVolUnidade(data) {
-    const dom=$('#ch-vol-unidade'); if(!dom)return;
-    const rows=[...data.units].sort((a,b)=>a.totalReal-b.totalReal);
-    regChart(dom, () => { const c = chartTheme(); return {
-      grid:{left:8,right:66,top:8,bottom:8,containLabel:true},
-      tooltip:{trigger:'axis',axisPointer:{type:'shadow'},valueFormatter:v=>fmt(v)+' proc.'},
-      xAxis:{type:'value',axisLabel:{formatter:v=>fmt(v),color:c.axis},splitLine:{lineStyle:{color:c.grid}}},
-      yAxis:{type:'category',data:rows.map(u=>u.name),axisLabel:{color:c.axis,fontSize:12},axisTick:{show:false},axisLine:{lineStyle:{color:c.line}}},
-      series:[{type:'bar',barWidth:'55%',data:rows.map(u=>({value:u.totalReal,itemStyle:{color:c.azul,borderRadius:[0,5,5,0]}})),
-        label:{show:true,position:'right',formatter:p=>fmt(p.value),color:c.axis,fontSize:11.5}}]
-    };});
+  // valor de um procedimento no modo atual (realizado = ano todo; tabulado = meses com TAB)
+  function valModo(unit, p, modo) {
+    if (modo === 'tabulado') return unit.tabMonths.reduce((a,m)=>a+(p.tab[m]||0),0);
+    return Object.values(p.realizado).reduce((a,b)=>a+b,0);
   }
-  function chartMix(data, mixTop) {
-    const dom=$('#ch-mix'); if(!dom)return;
-    const rows=[...mixTop].reverse();
-    regChart(dom, () => { const c = chartTheme(); return {
-      grid:{left:8,right:62,top:8,bottom:8,containLabel:true},
+
+  // instâncias dedicadas desta seção (recriadas ao trocar modo)
+  const prodCharts = {};
+  function makeProdChart(id, buildOption) {
+    const dom = $('#'+id); if(!dom) return;
+    if (prodCharts[id]) { prodCharts[id].setOption(buildOption(), true); return; }
+    const ch = echarts.init(dom);
+    ch.setOption(buildOption());
+    prodCharts[id] = ch;
+    REG.push({ ch, buildOption });
+  }
+
+  // Composição por unidade (barras empilhadas por tipo de procedimento)
+  function chartComposicao(data, estado) {
+    // top 5 tipos (por realizado na rede) + "Outros"
+    const topKeys = data.network.mix.slice(0,5).map(m=>m.code);
+    const units = [...data.units].sort((a,b)=>
+      b.procedures.reduce((s,p)=>s+valModo(b,p,estado.modo),0) - a.procedures.reduce((s,p)=>s+valModo(a,p,estado.modo),0));
+    const tipos = data.network.mix.slice(0,5).map(m=>m.desc);
+    makeProdChart('ch-composicao', () => { const c = chartTheme();
+      const series = topKeys.map((code,i)=>({
+        name: tipos[i], type:'bar', stack:'t', barWidth:'58%',
+        itemStyle:{ color: PAL[i % PAL.length] },
+        emphasis:{ focus:'series' },
+        data: units.map(u => { const p = u.procedures.find(x=>x.code===code); return p?valModo(u,p,estado.modo):0; })
+      }));
+      // "Outros"
+      series.push({ name:'Outros', type:'bar', stack:'t', barWidth:'58%',
+        itemStyle:{ color: c.line },
+        data: units.map(u => u.procedures.filter(p=>!topKeys.includes(p.code)).reduce((a,p)=>a+valModo(u,p,estado.modo),0)) });
+      return {
+        color:PAL,
+        grid:{left:8,right:12,top:52,bottom:8,containLabel:true},
+        tooltip:{trigger:'axis',axisPointer:{type:'shadow'},valueFormatter:v=>fmt(v)+' proc.'},
+        legend:{top:0,type:'scroll',textStyle:{color:c.axis,fontSize:10.5},itemWidth:12,itemHeight:8},
+        xAxis:{type:'value',show:false},
+        yAxis:{type:'category',data:units.map(u=>u.name),axisLabel:{color:c.axis,fontSize:11},axisTick:{show:false},axisLine:{lineStyle:{color:c.line}}},
+        series
+      };
+    });
+  }
+
+  function chartMix(data, estado) {
+    // recalcula o top por modo
+    const agg = {};
+    data.units.forEach(u => u.procedures.forEach(p => {
+      const key = p.code+' '+shortDesc(p.desc);
+      agg[key] = agg[key] || { desc: shortDesc(p.desc), v:0 };
+      agg[key].v += valModo(u, p, estado.modo);
+    }));
+    const rows = Object.values(agg).filter(x=>x.v>0).sort((a,b)=>a.v-b.v).slice(-8);
+    makeProdChart('ch-mix', () => { const c = chartTheme(); return {
+      grid:{left:8,right:72,top:8,bottom:8,containLabel:true},
       tooltip:{trigger:'axis',axisPointer:{type:'shadow'},valueFormatter:v=>fmt(v)+' proc.'},
-      xAxis:{type:'value',axisLabel:{formatter:v=>fmt(v),color:c.axis},splitLine:{lineStyle:{color:c.grid}}},
+      xAxis:{type:'value',show:false,max:v=>v.max*1.12},
       yAxis:{type:'category',data:rows.map(m=>m.desc),axisLabel:{color:c.axis,fontSize:11,width:150,overflow:'truncate'},axisTick:{show:false},axisLine:{lineStyle:{color:c.line}}},
-      series:[{type:'bar',barWidth:'60%',data:rows.map((m,i)=>({value:m.real,itemStyle:{color:i===rows.length-1?c.azul:c.azul300,borderRadius:[0,5,5,0]}})),
+      series:[{type:'bar',barWidth:'60%',data:rows.map((m,i)=>({value:m.v,itemStyle:{color:i===rows.length-1?c.azul:c.azul300,borderRadius:[0,5,5,0]}})),
         label:{show:true,position:'right',formatter:p=>fmt(p.value),color:c.axis,fontSize:11}}]
     };});
   }
-  function chartEvolucao(data) {
-    const dom=$('#ch-evolucao'); if(!dom)return;
-    const months=data.network.months;
-    regChart(dom, () => { const c = chartTheme();
+
+  function chartEvolucao(data, estado) {
+    const months = estado.modo==='tabulado' ? data.network.tabMonths : data.network.months;
+    makeProdChart('ch-evolucao', () => { const c = chartTheme();
       const series=data.units.map((u,i)=>({
         name:u.name, type:'line', smooth:true, symbol:'circle', symbolSize:6,
         lineStyle:{width:2.4}, itemStyle:{color:PAL[i%PAL.length]},
-        data:months.map(m=>u.procedures.reduce((a,p)=>a+(p.realizado[m]||0),0))
+        emphasis:{ focus:'series' },
+        data:months.map(m=> u.procedures.reduce((a,p)=>a+(estado.modo==='tabulado'?(p.tab[m]||0):(p.realizado[m]||0)),0))
       }));
       return {
         color:PAL,
@@ -563,11 +639,6 @@
         <div class="card-sub">Procedimentos com produção registrada mas sem tabulação, ou com maior diferença. Dois grupos: os que podem não ser tabuláveis pela natureza, e os que deveriam ser tabulados.</div>
         <div id="perdas-wrap"></div>
       </div>
-      <div class="nota">
-        <span class="nota-ico">${ICON.info}</span>
-        <div>Em <strong>${data.network.tabGtCount}</strong> registros o valor tabulado é maior que o realizado no mesmo mês. Isso costuma indicar tabulação feita em competência diferente da produção, ou ajuste de registro. <strong>Ponto a investigar com a equipe.</strong></div>
-      </div>
-      ${semTab.length?`<div class="nota"><span class="nota-ico">${ICON.info}</span><div>As unidades <strong>${semTab.map(u=>u.name).join(', ')}</strong> ainda não possuem dados de tabulação nesta planilha. Quando forem informados, entrarão automaticamente nesta análise.</div></div>`:''}
     `;
     setTimeout(()=>{ chartRealxTab(data, caps); renderPerdas(data, caps); },0);
     return s;
@@ -618,16 +689,27 @@
   // ========================================================
   function secQualidade(data) {
     const s = el('section','bloco'); s.id='qualidade';
-    const itens = [];
-    if (data.network.tabGtCount>0)
-      itens.push(['warn', `${data.network.tabGtCount} registros com Tabulado maior que Realizado`, 'Possível diferença de competência entre produção e tabulação. A investigar.']);
+    const itens = []; // [kind, titulo, desc, expandableHTML?]
+
+    if (data.network.tabGtCount>0) {
+      const linhas = data.network.tabGtList.map(r =>
+        `<tr><td>${r.unidade}</td><td>${r.code} ${r.desc}</td><td>${MSHORT[r.mes]}</td><td class="num">${fmt(r.real)}</td><td class="num">${fmt(r.tab)}</td><td class="num qa-gap">+${fmt(r.tab-r.real)}</td></tr>`
+      ).join('');
+      const tabela = `
+        <button class="qa-toggle" type="button">Ver os ${data.network.tabGtCount} registros</button>
+        <div class="qa-detalhe" hidden>
+          <div class="qa-tablewrap"><table class="qa-table">
+            <thead><tr><th>Unidade</th><th>Procedimento</th><th>Mês</th><th>Realizado</th><th>Tabulado</th><th>Diferença</th></tr></thead>
+            <tbody>${linhas}</tbody>
+          </table></div>
+        </div>`;
+      itens.push(['warn', `${data.network.tabGtCount} registros com Tabulado maior que Realizado`, 'Possível diferença de competência entre produção e tabulação. A investigar.', tabela]);
+    }
     data.warnings.forEach(w => itens.push(['warn', 'Valor inconsistente', w]));
-    // procedimentos nunca tabulados (resumo)
     data.units.filter(u=>u.hasTab).forEach(u=>{
       if (u.naoTabulados.length)
         itens.push(['info', `${u.name}: ${u.naoTabulados.length} procedimentos sem tabulação`, 'Alguns podem não ser tabuláveis pela natureza (articulação de redes, matriciamento); outros deveriam ser registrados.']);
     });
-    // unidades sem TAB
     const semTab = data.units.filter(u=>!u.hasTab);
     if (semTab.length)
       itens.push(['info', `${semTab.length} unidades sem coluna de tabulação`, semTab.map(u=>u.name).join(', ')+'. Serão incluídas quando os dados forem informados.']);
@@ -640,12 +722,23 @@
         <p class="bloco-lede">Pontos de atenção identificados automaticamente na planilha. Não alteram os números apresentados: são sinalizados para leitura cuidadosa e para orientar a conferência com as equipes.</p>
       </div>
       <div class="qa-list">
-        ${itens.map(([k,t,d])=>{
+        ${itens.map(([k,t,d,extra])=>{
           const ico = k==='ok'?ICON.check:k==='warn'?ICON.alert:ICON.info;
           const cls = k==='ok'?'qa-ok':k==='warn'?'qa-warn':'qa-info';
-          return `<div class="qa-item ${cls}"><span class="qa-ico">${ico}</span><div><div class="qa-t">${t}</div><div class="qa-d">${d}</div></div></div>`;
+          return `<div class="qa-item ${cls}"><span class="qa-ico">${ico}</span><div class="qa-body"><div class="qa-t">${t}</div><div class="qa-d">${d}</div>${extra||''}</div></div>`;
         }).join('')}
       </div>`;
+
+    // liga o botão de expandir
+    setTimeout(()=>{
+      const btn = s.querySelector('.qa-toggle');
+      if (btn) btn.onclick = () => {
+        const det = btn.nextElementSibling;
+        const open = !det.hasAttribute('hidden');
+        if (open) { det.setAttribute('hidden',''); btn.textContent = `Ver os ${data.network.tabGtCount} registros`; }
+        else { det.removeAttribute('hidden'); btn.textContent = 'Ocultar registros'; }
+      };
+    },0);
     return s;
   }
 
