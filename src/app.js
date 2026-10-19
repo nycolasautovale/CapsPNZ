@@ -359,9 +359,8 @@
 
     app.innerHTML = `
       <div class="topbar"><div class="wrap">
-        <img src="${LOGO.brasao}" alt="Prefeitura de Petrolina">
-        <div class="tb-sep"></div>
-        <img src="${LOGO.saude}" alt="Secretaria de Saúde">
+        <span class="chip-logo"><img src="${LOGO.brasao}" alt="Prefeitura de Petrolina"></span>
+        <span class="chip-logo"><img src="${LOGO.saude}" alt="Secretaria de Saúde"></span>
         <div class="tb-title">Produção da Rede CAPS</div>
         <div class="tb-period">${periodo}</div>
         <button class="tema-btn" id="tema-btn" type="button" aria-label="Alternar tema"></button>
