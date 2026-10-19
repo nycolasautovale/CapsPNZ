@@ -485,12 +485,12 @@
         </div>
       </div>
       <div class="grid-2">
-        <div class="card"><div class="card-title">Composição da produção por unidade</div><div class="card-sub">Participação de cada tipo de procedimento dentro da unidade</div><div class="chart" id="ch-composicao"></div></div>
+        <div class="card"><div class="card-title">Composição da produção por unidade</div><div class="card-sub">Participação de cada tipo de procedimento dentro da unidade. Clique na legenda para ocultar ou destacar um tipo.</div><div class="chart" id="ch-composicao"></div></div>
         <div class="card"><div class="card-title">Principais procedimentos da rede</div><div class="card-sub">Top ${mixTop.length} por volume</div><div class="chart" id="ch-mix"></div></div>
       </div>
       <div class="card" style="margin-top:16px">
         <div class="card-title">Evolução mensal por unidade</div>
-        <div class="card-sub">Produção por mês. Passe o mouse para ver os valores.</div>
+        <div class="card-sub">Produção por mês. Clique na legenda para ocultar unidades e comparar só as que quiser.</div>
         <div class="chart" id="ch-evolucao" style="height:360px"></div>
       </div>`;
 
@@ -629,7 +629,7 @@
       <div class="sem-grid">${cards}</div>
       <div class="card" style="margin-top:16px">
         <div class="card-title">Realizado x Tabulado por unidade</div>
-        <div class="card-sub">Soma dos meses com tabulação disponível</div>
+        <div class="card-sub">Soma dos meses com tabulação disponível. Clique na legenda para isolar Realizado ou Tabulado.</div>
         <div class="chart" id="ch-realxtab"></div>
       </div>
       <div class="card" style="margin-top:16px">
@@ -687,31 +687,48 @@
   // ========================================================
   function secQualidade(data) {
     const s = el('section','bloco'); s.id='qualidade';
-    const itens = []; // [kind, titulo, desc, expandableHTML?]
+    const itens = []; // {kind, titulo, desc, btnLabel?, detail?}
 
+    // 1) registros com Tabulado > Realizado  (tabela detalhada)
     if (data.network.tabGtCount>0) {
       const linhas = data.network.tabGtList.map(r =>
         `<tr><td>${r.unidade}</td><td>${r.code} ${r.desc}</td><td>${MSHORT[r.mes]}</td><td class="num">${fmt(r.real)}</td><td class="num">${fmt(r.tab)}</td><td class="num qa-gap">+${fmt(r.tab-r.real)}</td></tr>`
       ).join('');
-      const tabela = `
-        <button class="qa-toggle" type="button">Ver os ${data.network.tabGtCount} registros</button>
-        <div class="qa-detalhe" hidden>
-          <div class="qa-tablewrap"><table class="qa-table">
+      itens.push({ kind:'warn',
+        titulo:`${data.network.tabGtCount} registros com Tabulado maior que Realizado`,
+        desc:'Possível diferença de competência entre produção e tabulação. A investigar.',
+        btnLabel:`Ver os ${data.network.tabGtCount} registros`,
+        detail:`<div class="qa-tablewrap"><table class="qa-table">
             <thead><tr><th>Unidade</th><th>Procedimento</th><th>Mês</th><th>Realizado</th><th>Tabulado</th><th>Diferença</th></tr></thead>
-            <tbody>${linhas}</tbody>
-          </table></div>
-        </div>`;
-      itens.push(['warn', `${data.network.tabGtCount} registros com Tabulado maior que Realizado`, 'Possível diferença de competência entre produção e tabulação. A investigar.', tabela]);
+            <tbody>${linhas}</tbody></table></div>` });
     }
-    data.warnings.forEach(w => itens.push(['warn', 'Valor inconsistente', w]));
+
+    data.warnings.forEach(w => itens.push({ kind:'warn', titulo:'Valor inconsistente', desc:w }));
+
+    // 2) procedimentos sem tabulação por unidade (lista detalhada de cada um)
     data.units.filter(u=>u.hasTab).forEach(u=>{
-      if (u.naoTabulados.length)
-        itens.push(['info', `${u.name}: ${u.naoTabulados.length} procedimentos sem tabulação`, 'Alguns podem não ser tabuláveis pela natureza (articulação de redes, matriciamento); outros deveriam ser registrados.']);
+      if (!u.naoTabulados.length) return;
+      const linhas = u.naoTabulados.map(p =>
+        `<tr><td>${p.code} ${p.desc}</td><td class="num">${fmt(p.real)}</td><td class="num">0</td></tr>`
+      ).join('');
+      itens.push({ kind:'info',
+        titulo:`${u.name}: ${u.naoTabulados.length} procedimentos sem tabulação`,
+        desc:'Alguns podem não ser tabuláveis pela natureza (articulação de redes, matriciamento); outros deveriam ser registrados.',
+        btnLabel:`Ver os ${u.naoTabulados.length}`,
+        detail:`<div class="qa-tablewrap"><table class="qa-table">
+            <thead><tr><th>Procedimento</th><th>Realizado</th><th>Tabulado</th></tr></thead>
+            <tbody>${linhas}</tbody></table></div>` });
     });
+
+    // 3) unidades sem coluna de tabulação (já nomeadas no texto -> sem botão)
     const semTab = data.units.filter(u=>!u.hasTab);
     if (semTab.length)
-      itens.push(['info', `${semTab.length} unidades sem coluna de tabulação`, semTab.map(u=>u.name).join(', ')+'. Serão incluídas quando os dados forem informados.']);
-    if (!itens.length) itens.push(['ok','Nenhuma inconsistência relevante detectada','Os dados passaram nas verificações automáticas.']);
+      itens.push({ kind:'info',
+        titulo:`${semTab.length} unidades sem coluna de tabulação`,
+        desc: semTab.map(u=>u.name).join(', ')+'. Serão incluídas quando os dados forem informados.' });
+
+    if (!itens.length)
+      itens.push({ kind:'ok', titulo:'Nenhuma inconsistência relevante detectada', desc:'Os dados passaram nas verificações automáticas.' });
 
     s.innerHTML = `
       <div class="bloco-head">
@@ -720,22 +737,32 @@
         <p class="bloco-lede">Pontos de atenção identificados automaticamente na planilha. Não alteram os números apresentados: são sinalizados para leitura cuidadosa e para orientar a conferência com as equipes.</p>
       </div>
       <div class="qa-list">
-        ${itens.map(([k,t,d,extra])=>{
-          const ico = k==='ok'?ICON.check:k==='warn'?ICON.alert:ICON.info;
-          const cls = k==='ok'?'qa-ok':k==='warn'?'qa-warn':'qa-info';
-          return `<div class="qa-item ${cls}"><span class="qa-ico">${ico}</span><div class="qa-body"><div class="qa-t">${t}</div><div class="qa-d">${d}</div>${extra||''}</div></div>`;
+        ${itens.map(it=>{
+          const ico = it.kind==='ok'?ICON.check:it.kind==='warn'?ICON.alert:ICON.info;
+          const cls = it.kind==='ok'?'qa-ok':it.kind==='warn'?'qa-warn':'qa-info';
+          const btn = it.detail ? `<button class="qa-toggle" type="button" data-label="${esc(it.btnLabel)}">${it.btnLabel}</button>` : '';
+          const det = it.detail ? `<div class="qa-detalhe" hidden>${it.detail}</div>` : '';
+          return `<div class="qa-item ${cls}">
+            <span class="qa-ico">${ico}</span>
+            <div class="qa-body">
+              <div class="qa-row"><div class="qa-t">${it.titulo}</div>${btn}</div>
+              <div class="qa-d">${it.desc}</div>
+              ${det}
+            </div>
+          </div>`;
         }).join('')}
       </div>`;
 
-    // liga o botão de expandir
+    // liga os botões de expandir (um por item com detalhe)
     setTimeout(()=>{
-      const btn = s.querySelector('.qa-toggle');
-      if (btn) btn.onclick = () => {
-        const det = btn.nextElementSibling;
-        const open = !det.hasAttribute('hidden');
-        if (open) { det.setAttribute('hidden',''); btn.textContent = `Ver os ${data.network.tabGtCount} registros`; }
-        else { det.removeAttribute('hidden'); btn.textContent = 'Ocultar registros'; }
-      };
+      s.querySelectorAll('.qa-toggle').forEach(btn => {
+        btn.onclick = () => {
+          const det = btn.closest('.qa-body').querySelector('.qa-detalhe');
+          const open = !det.hasAttribute('hidden');
+          if (open) { det.setAttribute('hidden',''); btn.textContent = btn.dataset.label; }
+          else { det.removeAttribute('hidden'); btn.textContent = 'Ocultar'; }
+        };
+      });
     },0);
     return s;
   }
