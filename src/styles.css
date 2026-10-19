@@ -305,10 +305,17 @@ section.bloco { margin-bottom: 56px; scroll-margin-top: 80px; }
 .qa-toggle { flex: 0 0 auto; background: var(--azul-050); color: var(--azul); border: 1px solid var(--linha); border-radius: 8px; padding: 6px 13px; font-size: 12.5px; font-weight: 600; cursor: pointer; white-space: nowrap; transition: background .15s, border-color .15s; }
 .qa-toggle:hover { background: var(--dropzone-hover); border-color: var(--azul-300); }
 .qa-detalhe { margin-top: 12px; }
-.qa-tablewrap { max-height: 320px; overflow: auto; border: 1px solid var(--linha); border-radius: 9px; }
+.qa-tablewrap { max-height: 320px; overflow: auto; border: 1px solid var(--linha); border-radius: 9px; scrollbar-gutter: stable; }
+/* barra de rolagem discreta e com respiro, para não colar no conteúdo */
+.qa-tablewrap::-webkit-scrollbar { width: 10px; height: 10px; }
+.qa-tablewrap::-webkit-scrollbar-thumb { background: var(--linha-forte); border-radius: 99px; border: 3px solid var(--branco); background-clip: padding-box; }
+.qa-tablewrap::-webkit-scrollbar-track { background: transparent; }
+.qa-tablewrap { scrollbar-width: thin; scrollbar-color: var(--linha-forte) transparent; }
 .qa-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
 .qa-table thead th { position: sticky; top: 0; background: var(--branco); text-align: left; font-weight: 600; color: var(--tinta-600); padding: 9px 12px; border-bottom: 1px solid var(--linha); white-space: nowrap; }
 .qa-table td { padding: 8px 12px; border-bottom: 1px solid var(--linha); color: var(--tinta-600); }
+.qa-table th:last-child, .qa-table td:last-child { padding-right: 16px; }
+.qa-table th:first-child, .qa-table td:first-child { padding-left: 14px; }
 .qa-table td.num { text-align: right; color: var(--tinta); }
 .qa-table td.qa-gap { color: var(--ambar); font-weight: 600; }
 .qa-table tbody tr:last-child td { border-bottom: none; }
@@ -423,22 +430,6 @@ section.bloco { margin-bottom: 56px; scroll-margin-top: 80px; }
 footer.rodape { border-top: 1px solid var(--linha); padding: 22px 0; font-size: 12px; color: var(--tinta-400); text-align: center; }
 
 /* ---------------- COMPONENTES NOVOS (melhorias) ---------------- */
-
-/* botão de ação na topbar (imprimir/PDF) — mesmo estilo do tema */
-.tb-acao {
-  margin-left: auto; flex: 0 0 auto;
-  width: 38px; height: 38px; border-radius: 9px;
-  display: inline-flex; align-items: center; justify-content: center;
-  background: transparent; border: 1px solid var(--linha-forte);
-  color: var(--tinta-600); cursor: pointer;
-  transition: background .15s, color .15s, border-color .15s;
-}
-.tb-acao:hover { background: var(--azul-050); color: var(--azul); border-color: var(--azul-300); }
-.tb-acao svg { display: block; }
-.tb-acao + .tema-btn { margin-left: 10px; }
-/* quando há botão de ação, o período não precisa empurrar sozinho */
-.topbar .tb-period { margin-left: auto; }
-.topbar .tb-period + .tb-acao { margin-left: 14px; }
 
 /* estado de carregamento (upload) */
 .carregando { display: flex; align-items: center; gap: 10px; font-size: 13.5px; color: var(--tinta-600); padding: 8px 0; }

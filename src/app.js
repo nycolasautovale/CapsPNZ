@@ -364,7 +364,6 @@
         <img src="${LOGO.saude}" alt="Secretaria de Saúde">
         <div class="tb-title">Produção da Rede CAPS</div>
         <div class="tb-period">${periodo}</div>
-        <button class="tb-acao" id="btn-imprimir" type="button" aria-label="Imprimir ou salvar como PDF" title="Imprimir / salvar PDF">${ICON.printer}</button>
         <button class="tema-btn" id="tema-btn" type="button" aria-label="Alternar tema"></button>
       </div></div>
       <nav class="nav-mobile" id="nav-mobile"></nav>
@@ -394,8 +393,6 @@
     applyTheme(getTheme());               // garante ícone correto no botão
     const tbtn = $('#tema-btn');
     if (tbtn) tbtn.onclick = toggleTheme;
-    const pbtn = $('#btn-imprimir');
-    if (pbtn) pbtn.onclick = () => window.print();
   }
 
   // destaca item do índice conforme a rolagem
