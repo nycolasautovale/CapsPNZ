@@ -375,6 +375,7 @@ section.bloco { margin-bottom: 56px; scroll-margin-top: 80px; }
   padding: 14px 2px; text-align: left;
 }
 .perda-titulo { font-size: 14px; font-weight: 700; color: var(--azul); }
+.perda-contagem { font-size: 12px; font-weight: 600; color: var(--vermelho); margin-left: 8px; }
 .perda-chevron { color: var(--tinta-400); display: inline-flex; transition: transform .2s ease; }
 .perda-head.aberto .perda-chevron { transform: rotate(180deg); }
 .perda-head:hover .perda-titulo { color: var(--azul-700); }

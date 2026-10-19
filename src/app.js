@@ -84,8 +84,14 @@
       borderColor: c.tip.borderColor,
       borderWidth: 1,
       textStyle: c.tip.textStyle,
+      confine: true,
       extraCssText: 'box-shadow:0 4px 16px rgba(0,0,0,.18);border-radius:9px;'
     }, extra || {});
+  }
+  // posiciona o tooltip no canto superior-esquerdo da área do gráfico,
+  // evitando que ele cubra as barras/rótulos (usado nos gráficos horizontais).
+  function tipPos(pt, params, dom, rect, size) {
+    return [10, 10];
   }
   // aplica tema o quanto antes (evita flash). Chamado no load.
   applyTheme(getTheme());
@@ -453,7 +459,7 @@
     const rows = [...data.units].sort((a,b)=>a.totalReal-b.totalReal);
     regChart(dom, () => { const c = chartTheme(); return {
       grid:{left:8,right:70,top:10,bottom:10,containLabel:true},
-      tooltip:tipBase(c,{trigger:'axis',axisPointer:{type:'shadow'},valueFormatter:v=>fmt(v)+' proc.'}),
+      tooltip:tipBase(c,{trigger:'axis',axisPointer:{type:'shadow'},position:tipPos,valueFormatter:v=>fmt(v)+' proc.'}),
       xAxis:{type:'value',show:false,max:v=>v.max*1.12},
       yAxis:{type:'category',data:rows.map(u=>u.name),axisLabel:{fontSize:12,color:c.axis},axisTick:{show:false},axisLine:{lineStyle:{color:c.line}}},
       series:[{type:'bar',data:rows.map(u=>({value:u.totalReal,itemStyle:{color:c.azul,borderRadius:[0,5,5,0]}})),barWidth:'55%',
@@ -556,10 +562,11 @@
       return {
         color:PAL,
         grid:{left:8,right:12,top:52,bottom:8,containLabel:true},
-        tooltip:tipBase(c,{trigger:'axis',axisPointer:{type:'shadow'},valueFormatter:v=>fmt(v)+' proc.'}),
-        legend:{top:0,type:'scroll',textStyle:{color:c.axis,fontSize:10.5},itemWidth:12,itemHeight:8},
+        tooltip:tipBase(c,{trigger:'axis',axisPointer:{type:'shadow'},position:tipPos,valueFormatter:v=>fmt(v)+' proc.'}),
+        legend:{top:0,type:'scroll',textStyle:{color:c.axis,fontSize:11},itemWidth:12,itemHeight:8,
+          pageIconColor:c.axis,pageIconInactiveColor:c.line,pageTextStyle:{color:c.axis}},
         xAxis:{type:'value',show:false},
-        yAxis:{type:'category',data:units.map(u=>u.name),axisLabel:{color:c.axis,fontSize:11},axisTick:{show:false},axisLine:{lineStyle:{color:c.line}}},
+        yAxis:{type:'category',data:units.map(u=>u.name),axisLabel:{color:c.axis,fontSize:11,width:112,overflow:'break',lineHeight:14},axisTick:{show:false},axisLine:{lineStyle:{color:c.line}}},
         series
       };
     });
@@ -576,7 +583,7 @@
     const rows = Object.values(agg).filter(x=>x.v>0).sort((a,b)=>a.v-b.v).slice(-8);
     makeProdChart('ch-mix', () => { const c = chartTheme(); return {
       grid:{left:8,right:72,top:8,bottom:8,containLabel:true},
-      tooltip:tipBase(c,{trigger:'axis',axisPointer:{type:'shadow'},valueFormatter:v=>fmt(v)+' proc.'}),
+      tooltip:tipBase(c,{trigger:'axis',axisPointer:{type:'shadow'},position:tipPos,valueFormatter:v=>fmt(v)+' proc.'}),
       xAxis:{type:'value',show:false,max:v=>v.max*1.12},
       yAxis:{type:'category',data:rows.map(m=>m.desc),axisLabel:{color:c.axis,fontSize:11,width:150,overflow:'truncate'},axisTick:{show:false},axisLine:{lineStyle:{color:c.line}}},
       series:[{type:'bar',barWidth:'60%',data:rows.map((m,i)=>({value:m.v,itemStyle:{color:i===rows.length-1?c.azul:c.azul300,borderRadius:[0,5,5,0]}})),
@@ -680,15 +687,15 @@
     const wrap=$('#perdas-wrap'); if(!wrap)return;
     let idx = 0;
     caps.forEach(u => {
-      const naoTab = u.naoTabulados.slice(0,5);
-      const perdas = u.maioresPerdas.slice(0,4);
+      const naoTab = u.naoTabulados;            // lista completa (fonte única)
+      const perdas = u.maioresPerdas.slice(0,4); // ranking: mostra o topo
       if (!naoTab.length && !perdas.length) return;
       const aberto = idx === 0;  // primeira unidade aberta, demais fechadas
       idx++;
       const block = el('div','perda-unidade');
       let corpo = '';
       if (naoTab.length) {
-        corpo += `<div class="perda-grupo"><span class="badge badge-crit">Sem tabulação no período</span><ul>`;
+        corpo += `<div class="perda-grupo"><span class="badge badge-crit">Sem tabulação no período (${naoTab.length})</span><ul>`;
         naoTab.forEach(p => corpo += `<li><span>${p.code} ${p.desc}</span><b class="num">${fmt(p.real)} realiz. / 0 tab.</b></li>`);
         corpo += `</ul></div>`;
       }
@@ -697,9 +704,10 @@
         perdas.forEach(p => corpo += `<li><span>${p.code} ${p.desc}</span><b class="num">${fmt(p.real)} - ${fmt(p.tab)} = ${fmt(p.gap)} (${pct(p.taxa)})</b></li>`);
         corpo += `</ul></div>`;
       }
+      const resumo = naoTab.length ? `${naoTab.length} sem tabulação` : '';
       block.innerHTML = `
         <button class="perda-head${aberto?' aberto':''}" type="button" aria-expanded="${aberto}">
-          <span class="perda-titulo">${u.name}</span>
+          <span class="perda-titulo">${u.name}${resumo?` <span class="perda-contagem">${resumo}</span>`:''}</span>
           <span class="perda-chevron">${ICON.chevron}</span>
         </button>
         <div class="perda-corpo"${aberto?'':' hidden'}>${corpo}</div>`;
@@ -737,22 +745,11 @@
 
     data.warnings.forEach(w => itens.push({ kind:'warn', titulo:'Valor inconsistente', desc:w }));
 
-    // 2) procedimentos sem tabulação por unidade (lista detalhada de cada um)
-    data.units.filter(u=>u.hasTab).forEach(u=>{
-      if (!u.naoTabulados.length) return;
-      const linhas = u.naoTabulados.map(p =>
-        `<tr><td>${p.code} ${p.desc}</td><td class="num">${fmt(p.real)}</td><td class="num">0</td></tr>`
-      ).join('');
-      itens.push({ kind:'info',
-        titulo:`${u.name}: ${u.naoTabulados.length} procedimentos sem tabulação`,
-        desc:'Produção registrada sem nenhuma tabulação no período. Como toda produção deveria ser tabulada, esses registros precisam ser conferidos e lançados no sistema.',
-        btnLabel:`Ver os ${u.naoTabulados.length}`,
-        detail:`<div class="qa-tablewrap"><table class="qa-table">
-            <thead><tr><th>Procedimento</th><th>Realizado</th><th>Tabulado</th></tr></thead>
-            <tbody>${linhas}</tbody></table></div>` });
-    });
+    // Obs.: os procedimentos sem tabulação por unidade são detalhados, de forma
+    // completa, na seção "Realizado x Tabulado" (card "Onde a produção não chega
+    // ao sistema"). Não repetimos aqui para evitar números divergentes.
 
-    // 3) unidades sem coluna de tabulação (já nomeadas no texto -> sem botão)
+    // 2) unidades sem coluna de tabulação (já nomeadas no texto -> sem botão)
     const semTab = data.units.filter(u=>!u.hasTab);
     if (semTab.length)
       itens.push({ kind:'info',
