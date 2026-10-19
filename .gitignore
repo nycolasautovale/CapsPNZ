@@ -1,0 +1,17 @@
+# Ambiente Python local
+.venv/
+__pycache__/
+*.pyc
+.python-version
+
+# Sistema
+.DS_Store
+Thumbs.db
+
+# Arquivos intermediários de análise (não versionados)
+data/atualizada.xlsx
+data/producao2026.xlsx
+data/producao2026_v2.xlsx
+data/producao_final_merged.xlsx
+data/producao_final_merged_ajustada.xlsx
+data/dados_extraidos.json

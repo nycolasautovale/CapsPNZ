@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Painel de Produção · Rede CAPS Petrolina</title>
+<style>__CSS__</style>
+</head>
+<body>
+
+  <!-- TELA DE UPLOAD -->
+  <div id="tela-upload">
+    <div class="upload-card">
+      <div class="upload-logos">
+        <img src="__LOGO_BRASAO__" alt="Prefeitura de Petrolina">
+        <div class="sep"></div>
+        <img src="__LOGO_SAUDE__" alt="Secretaria de Saúde">
+      </div>
+      <h1>Painel de Produção da Rede CAPS</h1>
+      <div class="sub">Secretaria de Saúde de Petrolina</div>
+
+      <label class="dropzone" id="dropzone">
+        <div class="ico">__ICON_UPLOAD__</div>
+        <div class="t1">Clique ou arraste a planilha de produção</div>
+        <div class="t2">Arquivo no formato .xlsx</div>
+        <input type="file" id="file-input" accept=".xlsx">
+      </label>
+
+      <div class="privacy">__ICON_LOCK__ O processamento é 100% local. Nenhum dado sai deste computador.</div>
+
+      <div class="validacao" id="validacao"></div>
+    </div>
+  </div>
+
+  <!-- APRESENTAÇÃO (preenchida via JS) -->
+  <div id="tela-app"></div>
+
+<script>__XLSX__</script>
+<script>__ECHARTS__</script>
+<script>__ICONS__</script>
+<script>
+  const LOGO = { brasao: "__LOGO_BRASAO__", saude: "__LOGO_SAUDE__" };
+</script>
+<script>__APP__</script>
+</body>
+</html>
