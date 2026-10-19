@@ -902,6 +902,8 @@ const ICON = {
       grid: v('--grid-line') || '#eef2f7',
       line: v('--linha-forte') || '#d0d8e4',
       azul300: v('--azul-300') || '#4f73c4',
+      // cor da barra em hover: contraste forte sobre a cor base, nos dois temas
+      barHover: dark ? '#bcd3ff' : (v('--azul') || '#123a8f'),
       surface: v('--branco') || '#ffffff',
       // faixa sutil do axisPointer (realce discreto da categoria sob o cursor).
       // Azul do tema com baixa opacidade: no escuro vira um leve realce azulado
@@ -1359,7 +1361,7 @@ const ICON = {
       xAxis:{type:'value',show:false,max:v=>v.max*1.12},
       yAxis:{type:'category',data:rows.map(u=>u.name),axisLabel:{fontSize:12,color:c.axis},axisTick:{show:false},axisLine:{lineStyle:{color:c.line}}},
       series:[{type:'bar',barWidth:'55%',
-        emphasis:{ itemStyle:{ shadowBlur:8, shadowColor:hexA(c.azul,.35) } },
+        emphasis:{ itemStyle:{ color:c.barHover, shadowBlur:14, shadowColor:hexA(c.azul,.45) } },
         data:rows.map(u=>({value:u.totalReal,itemStyle:{color:c.azul,borderRadius:[0,5,5,0]}})),
         label:{show:true,position:'right',formatter:p=>fmt(p.value),color:c.axis,fontSize:11.5}}]
     };});
@@ -1514,8 +1516,10 @@ const ICON = {
       xAxis:{type:'value',show:false,max:v=>v.max*1.12},
       yAxis:{type:'category',data:rows.map(m=>m.desc),axisLabel:{color:c.axis,fontSize:11,width:150,overflow:'truncate'},axisTick:{show:false},axisLine:{lineStyle:{color:c.line}}},
       series:[{type:'bar',barWidth:'60%',
-        emphasis:{ itemStyle:{ color:c.azul, shadowBlur:8, shadowColor:hexA(c.azul,.35) } },
-        data:rows.map((m,i)=>({value:m.v,itemStyle:{color:i===rows.length-1?c.azul:c.azul300,borderRadius:[0,5,5,0]}})),
+        // todas as barras com a MESMA cor; o destaque aparece só no hover
+        itemStyle:{ color:c.azul300, borderRadius:[0,5,5,0] },
+        emphasis:{ itemStyle:{ color:c.barHover, shadowBlur:14, shadowColor:hexA(c.azul,.45) } },
+        data:rows.map(m=>({value:m.v})),
         label:{show:true,position:'right',formatter:p=>fmt(p.value),color:c.axis,fontSize:11}}]
     };});
     regTable('ch-mix', () => ({
