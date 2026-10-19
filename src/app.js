@@ -675,10 +675,14 @@
     const rows = Object.values(agg).filter(x=>x.v>0).sort((a,b)=>a.v-b.v).slice(-8);
     makeProdChart('ch-mix', () => { const c = chartTheme(); return {
       grid:{left:8,right:72,top:8,bottom:8,containLabel:true},
-      tooltip:tipBase(c,{trigger:'axis',axisPointer:axisShadow(c),valueFormatter:v=>fmt(v)+' proc.'}),
+      // sem tooltip: nome e valor já estão visíveis (rótulo + número na barra).
+      // Ao passar o mouse, a barra sob o cursor ganha um realce sutil.
+      tooltip:{ show:false },
       xAxis:{type:'value',show:false,max:v=>v.max*1.12},
       yAxis:{type:'category',data:rows.map(m=>m.desc),axisLabel:{color:c.axis,fontSize:11,width:150,overflow:'truncate'},axisTick:{show:false},axisLine:{lineStyle:{color:c.line}}},
-      series:[{type:'bar',barWidth:'60%',data:rows.map((m,i)=>({value:m.v,itemStyle:{color:i===rows.length-1?c.azul:c.azul300,borderRadius:[0,5,5,0]}})),
+      series:[{type:'bar',barWidth:'60%',
+        emphasis:{ itemStyle:{ color:c.azul, shadowBlur:8, shadowColor:hexA(c.azul,.35) } },
+        data:rows.map((m,i)=>({value:m.v,itemStyle:{color:i===rows.length-1?c.azul:c.azul300,borderRadius:[0,5,5,0]}})),
         label:{show:true,position:'right',formatter:p=>fmt(p.value),color:c.axis,fontSize:11}}]
     };});
     regTable('ch-mix', () => ({
