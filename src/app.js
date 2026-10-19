@@ -211,7 +211,6 @@
       u.procLosses = u.procedures.map(p => {
         const real = tm.reduce((a,m)=>a+(p.realizado[m]||0),0);
         const tab  = tm.reduce((a,m)=>a+(p.tab[m]||0),0);
-        const isTabulado = u.procedures.some(()=>false) || Object.values(p.tab).some(v=>v>0);
         return {
           code:p.code, desc:shortDesc(p.desc), real, tab,
           gap: real - tab,
@@ -374,7 +373,6 @@
   // ---- Seção: Capa ----
   function secCapa(data, periodo) {
     const s = el('section','bloco'); s.id='capa';
-    const totalProc = data.units.reduce((a,u)=>a+u.procedures.length,0);
     s.innerHTML = `
       <div class="capa">
         <div class="capa-eyebrow">Secretaria de Saúde de Petrolina</div>
