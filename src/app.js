@@ -27,6 +27,51 @@
   const norm = s => (s==null?'':String(s).trim());
   const isNum = v => { if(v==null||v==='')return false; if(typeof v==='number')return true; return !isNaN(parseFloat(String(v).replace(',','.'))); };
   const toNum = v => isNum(v)?parseFloat(String(v).replace(',','.')):null;
+  // hex (#rrggbb) -> rgba(r,g,b,alpha); aceita também já-rgba (retorna como veio)
+  function hexA(hex, a) {
+    hex = (hex||'').trim();
+    const m = hex.match(/^#?([0-9a-f]{6})$/i);
+    if (!m) return hex;
+    const n = parseInt(m[1],16);
+    return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${a})`;
+  }
+
+  // ========================================================
+  //  TEMA (claro / escuro)
+  // ========================================================
+  const THEME_KEY = 'caps-tema';
+  function getTheme() {
+    const saved = localStorage.getItem(THEME_KEY);
+    if (saved === 'dark' || saved === 'light') return saved;
+    return (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+  }
+  function applyTheme(t) {
+    document.documentElement.setAttribute('data-theme', t);
+    const btn = $('#tema-btn');
+    if (btn) { btn.innerHTML = t === 'dark' ? ICON.sun : ICON.moon; btn.title = t === 'dark' ? 'Modo claro' : 'Modo escuro'; }
+  }
+  function toggleTheme() {
+    const next = (document.documentElement.getAttribute('data-theme') === 'dark') ? 'light' : 'dark';
+    localStorage.setItem(THEME_KEY, next);
+    applyTheme(next);
+    renderAllCharts(); // redesenha gráficos com as cores do novo tema
+  }
+  // cores dos gráficos conforme o tema atual (lidas das CSS vars)
+  function chartTheme() {
+    const cs = getComputedStyle(document.documentElement);
+    const v = n => cs.getPropertyValue(n).trim();
+    return {
+      azul: v('--azul') || '#123a8f',
+      amarelo: v('--amarelo') || '#efb93c',
+      axis: v('--chart-axis') || '#45586b',
+      grid: v('--grid-line') || '#eef2f7',
+      line: v('--linha-forte') || '#d0d8e4',
+      azul300: v('--azul-300') || '#4f73c4',
+      surface: v('--branco') || '#ffffff'
+    };
+  }
+  // aplica tema o quanto antes (evita flash). Chamado no load.
+  applyTheme(getTheme());
 
   // ========================================================
   //  MOTOR: lê a planilha e extrai só as linhas de procedimento
@@ -260,7 +305,9 @@
         <img src="${LOGO.saude}" alt="Secretaria de Saúde">
         <div class="tb-title">Produção da Rede CAPS</div>
         <div class="tb-period">${periodo}</div>
+        <button class="tema-btn" id="tema-btn" type="button" aria-label="Alternar tema"></button>
       </div></div>
+      <nav class="nav-mobile" id="nav-mobile"></nav>
       <div class="wrap"><div class="layout">
         <nav class="indice" id="indice"></nav>
         <main id="main"></main>
@@ -284,16 +331,24 @@
       ['insights','Insights', ICON.bulb],
     ]);
     setupScrollSpy();
+    applyTheme(getTheme());               // garante ícone correto no botão
+    const tbtn = $('#tema-btn');
+    if (tbtn) tbtn.onclick = toggleTheme;
   }
 
   // destaca item do índice conforme a rolagem
   function setupScrollSpy() {
     const links = Array.from(document.querySelectorAll('.indice a'));
+    const mlinks = Array.from(document.querySelectorAll('.nav-mobile a'));
     const secs = links.map(a => document.querySelector(a.getAttribute('href')));
     const onScroll = () => {
       let idx = 0;
       secs.forEach((s,i)=>{ if (s && s.getBoundingClientRect().top < 120) idx = i; });
       links.forEach((a,i)=> a.classList.toggle('active', i===idx));
+      mlinks.forEach((a,i)=> {
+        const on = i===idx; a.classList.toggle('active', on);
+        if (on && a.scrollIntoView) a.scrollIntoView({ inline:'center', block:'nearest', behavior:'smooth' });
+      });
     };
     window.addEventListener('scroll', onScroll, { passive:true });
     onScroll();
@@ -301,10 +356,17 @@
 
   function buildIndice(items) {
     const nav = $('#indice');
+    nav.innerHTML = `<div class="indice-head">Seções</div>`;
+    const mob = $('#nav-mobile');
+    if (mob) mob.innerHTML = '';
     items.forEach(([id,label,icon]) => {
       const a = el('a'); a.href = '#'+id;
-      a.innerHTML = `<span class="ii">${icon}</span>${label}`;
+      a.innerHTML = `<span class="ii">${icon}</span><span class="il">${label}</span>`;
       nav.appendChild(a);
+      if (mob) {
+        const m = el('a'); m.href = '#'+id; m.textContent = label;
+        mob.appendChild(m);
+      }
     });
   }
 
@@ -314,9 +376,7 @@
     const totalProc = data.units.reduce((a,u)=>a+u.procedures.length,0);
     s.innerHTML = `
       <div class="capa">
-        <div class="capa-logos">
-          <img src="${LOGO.brasao}" alt=""><img src="${LOGO.saude}" alt="">
-        </div>
+        <div class="capa-eyebrow">Secretaria de Saúde de Petrolina</div>
         <h2>Produção da Rede de Atenção<br>Psicossocial de Petrolina</h2>
         <p class="capa-sub">Análise da produção de procedimentos das unidades CAPS e de acolhimento, com foco na relação entre o que é realizado e o que é efetivamente tabulado no sistema.</p>
         <div class="capa-meta">
@@ -363,33 +423,29 @@
   // ---- gráficos do Panorama ----
   function chartParticipacao(data) {
     const dom = $('#ch-participacao'); if(!dom) return;
-    const ch = echarts.init(dom);
     const rows = [...data.units].sort((a,b)=>a.totalReal-b.totalReal);
-    ch.setOption({
+    regChart(dom, () => { const c = chartTheme(); return {
       grid:{left:8,right:60,top:10,bottom:10,containLabel:true},
       tooltip:{trigger:'axis',axisPointer:{type:'shadow'},valueFormatter:v=>fmt(v)+' proc.'},
-      xAxis:{type:'value',axisLabel:{formatter:v=>fmt(v)},splitLine:{lineStyle:{color:'#eef2f7'}}},
-      yAxis:{type:'category',data:rows.map(u=>u.name),axisLabel:{fontSize:12,color:'#45586b'},axisTick:{show:false},axisLine:{lineStyle:{color:'#d0d8e4'}}},
-      series:[{type:'bar',data:rows.map((u,i)=>({value:u.totalReal,itemStyle:{color:'#123a8f',borderRadius:[0,5,5,0]}})),barWidth:'55%',
-        label:{show:true,position:'right',formatter:p=>fmt(p.value),color:'#45586b',fontSize:11.5}}]
-    });
-    REG.push(ch);
+      xAxis:{type:'value',axisLabel:{formatter:v=>fmt(v),color:c.axis},splitLine:{lineStyle:{color:c.grid}}},
+      yAxis:{type:'category',data:rows.map(u=>u.name),axisLabel:{fontSize:12,color:c.axis},axisTick:{show:false},axisLine:{lineStyle:{color:c.line}}},
+      series:[{type:'bar',data:rows.map(u=>({value:u.totalReal,itemStyle:{color:c.azul,borderRadius:[0,5,5,0]}})),barWidth:'55%',
+        label:{show:true,position:'right',formatter:p=>fmt(p.value),color:c.axis,fontSize:11.5}}]
+    };});
   }
   function chartMensal(data) {
     const dom = $('#ch-mensal'); if(!dom) return;
-    const ch = echarts.init(dom);
     const months = data.network.months;
     const vals = months.map(m => data.units.reduce((s,u)=> s + u.procedures.reduce((a,p)=>a+(p.realizado[m]||0),0),0));
-    ch.setOption({
+    regChart(dom, () => { const c = chartTheme(); return {
       grid:{left:8,right:16,top:16,bottom:10,containLabel:true},
       tooltip:{trigger:'axis',valueFormatter:v=>fmt(v)+' proc.'},
-      xAxis:{type:'category',data:months.map(m=>MSHORT[m]),axisLine:{lineStyle:{color:'#d0d8e4'}},axisLabel:{color:'#45586b'}},
-      yAxis:{type:'value',axisLabel:{formatter:v=>fmt(v)},splitLine:{lineStyle:{color:'#eef2f7'}}},
+      xAxis:{type:'category',data:months.map(m=>MSHORT[m]),axisLine:{lineStyle:{color:c.line}},axisLabel:{color:c.axis}},
+      yAxis:{type:'value',axisLabel:{formatter:v=>fmt(v),color:c.axis},splitLine:{lineStyle:{color:c.grid}}},
       series:[{type:'line',data:vals,smooth:true,symbol:'circle',symbolSize:7,
-        lineStyle:{color:'#123a8f',width:3},itemStyle:{color:'#123a8f'},
-        areaStyle:{color:new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:'rgba(18,58,143,.18)'},{offset:1,color:'rgba(18,58,143,0)'}])}}]
-    });
-    REG.push(ch);
+        lineStyle:{color:c.azul,width:3},itemStyle:{color:c.azul},
+        areaStyle:{color:new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:hexA(c.azul,.18)},{offset:1,color:hexA(c.azul,0)}])}}]
+    };});
   }
 
   // ========================================================
@@ -421,49 +477,48 @@
   }
 
   function chartVolUnidade(data) {
-    const dom=$('#ch-vol-unidade'); if(!dom)return; const ch=echarts.init(dom);
+    const dom=$('#ch-vol-unidade'); if(!dom)return;
     const rows=[...data.units].sort((a,b)=>a.totalReal-b.totalReal);
-    ch.setOption({
+    regChart(dom, () => { const c = chartTheme(); return {
       grid:{left:8,right:66,top:8,bottom:8,containLabel:true},
       tooltip:{trigger:'axis',axisPointer:{type:'shadow'},valueFormatter:v=>fmt(v)+' proc.'},
-      xAxis:{type:'value',axisLabel:{formatter:v=>fmt(v)},splitLine:{lineStyle:{color:'#eef2f7'}}},
-      yAxis:{type:'category',data:rows.map(u=>u.name),axisLabel:{color:'#45586b',fontSize:12},axisTick:{show:false},axisLine:{lineStyle:{color:'#d0d8e4'}}},
-      series:[{type:'bar',barWidth:'55%',data:rows.map(u=>({value:u.totalReal,itemStyle:{color:'#123a8f',borderRadius:[0,5,5,0]}})),
-        label:{show:true,position:'right',formatter:p=>fmt(p.value),color:'#45586b',fontSize:11.5}}]
-    });
-    REG.push(ch);
+      xAxis:{type:'value',axisLabel:{formatter:v=>fmt(v),color:c.axis},splitLine:{lineStyle:{color:c.grid}}},
+      yAxis:{type:'category',data:rows.map(u=>u.name),axisLabel:{color:c.axis,fontSize:12},axisTick:{show:false},axisLine:{lineStyle:{color:c.line}}},
+      series:[{type:'bar',barWidth:'55%',data:rows.map(u=>({value:u.totalReal,itemStyle:{color:c.azul,borderRadius:[0,5,5,0]}})),
+        label:{show:true,position:'right',formatter:p=>fmt(p.value),color:c.axis,fontSize:11.5}}]
+    };});
   }
   function chartMix(data, mixTop) {
-    const dom=$('#ch-mix'); if(!dom)return; const ch=echarts.init(dom);
+    const dom=$('#ch-mix'); if(!dom)return;
     const rows=[...mixTop].reverse();
-    ch.setOption({
+    regChart(dom, () => { const c = chartTheme(); return {
       grid:{left:8,right:62,top:8,bottom:8,containLabel:true},
       tooltip:{trigger:'axis',axisPointer:{type:'shadow'},valueFormatter:v=>fmt(v)+' proc.'},
-      xAxis:{type:'value',axisLabel:{formatter:v=>fmt(v)},splitLine:{lineStyle:{color:'#eef2f7'}}},
-      yAxis:{type:'category',data:rows.map(m=>m.desc),axisLabel:{color:'#45586b',fontSize:11,width:150,overflow:'truncate'},axisTick:{show:false},axisLine:{lineStyle:{color:'#d0d8e4'}}},
-      series:[{type:'bar',barWidth:'60%',data:rows.map((m,i)=>({value:m.real,itemStyle:{color:i===rows.length-1?'#123a8f':'#4f73c4',borderRadius:[0,5,5,0]}})),
-        label:{show:true,position:'right',formatter:p=>fmt(p.value),color:'#45586b',fontSize:11}}]
-    });
-    REG.push(ch);
+      xAxis:{type:'value',axisLabel:{formatter:v=>fmt(v),color:c.axis},splitLine:{lineStyle:{color:c.grid}}},
+      yAxis:{type:'category',data:rows.map(m=>m.desc),axisLabel:{color:c.axis,fontSize:11,width:150,overflow:'truncate'},axisTick:{show:false},axisLine:{lineStyle:{color:c.line}}},
+      series:[{type:'bar',barWidth:'60%',data:rows.map((m,i)=>({value:m.real,itemStyle:{color:i===rows.length-1?c.azul:c.azul300,borderRadius:[0,5,5,0]}})),
+        label:{show:true,position:'right',formatter:p=>fmt(p.value),color:c.axis,fontSize:11}}]
+    };});
   }
   function chartEvolucao(data) {
-    const dom=$('#ch-evolucao'); if(!dom)return; const ch=echarts.init(dom);
+    const dom=$('#ch-evolucao'); if(!dom)return;
     const months=data.network.months;
-    const series=data.units.map((u,i)=>({
-      name:u.name, type:'line', smooth:true, symbol:'circle', symbolSize:6,
-      lineStyle:{width:2.4}, itemStyle:{color:PAL[i%PAL.length]},
-      data:months.map(m=>u.procedures.reduce((a,p)=>a+(p.realizado[m]||0),0))
-    }));
-    ch.setOption({
-      color:PAL,
-      grid:{left:8,right:16,top:40,bottom:8,containLabel:true},
-      tooltip:{trigger:'axis',valueFormatter:v=>fmt(v)+' proc.'},
-      legend:{top:0,textStyle:{color:'#45586b',fontSize:11.5},itemWidth:14,itemHeight:8},
-      xAxis:{type:'category',data:months.map(m=>MSHORT[m]),axisLine:{lineStyle:{color:'#d0d8e4'}},axisLabel:{color:'#45586b'}},
-      yAxis:{type:'value',axisLabel:{formatter:v=>fmt(v)},splitLine:{lineStyle:{color:'#eef2f7'}}},
-      series
+    regChart(dom, () => { const c = chartTheme();
+      const series=data.units.map((u,i)=>({
+        name:u.name, type:'line', smooth:true, symbol:'circle', symbolSize:6,
+        lineStyle:{width:2.4}, itemStyle:{color:PAL[i%PAL.length]},
+        data:months.map(m=>u.procedures.reduce((a,p)=>a+(p.realizado[m]||0),0))
+      }));
+      return {
+        color:PAL,
+        grid:{left:8,right:16,top:40,bottom:8,containLabel:true},
+        tooltip:{trigger:'axis',valueFormatter:v=>fmt(v)+' proc.'},
+        legend:{top:0,textStyle:{color:c.axis,fontSize:11.5},itemWidth:14,itemHeight:8},
+        xAxis:{type:'category',data:months.map(m=>MSHORT[m]),axisLine:{lineStyle:{color:c.line}},axisLabel:{color:c.axis}},
+        yAxis:{type:'value',axisLabel:{formatter:v=>fmt(v),color:c.axis},splitLine:{lineStyle:{color:c.grid}}},
+        series
+      };
     });
-    REG.push(ch);
   }
 
   // ========================================================
@@ -519,21 +574,20 @@
   }
 
   function chartRealxTab(data, caps) {
-    const dom=$('#ch-realxtab'); if(!dom)return; const ch=echarts.init(dom);
+    const dom=$('#ch-realxtab'); if(!dom)return;
     const real = caps.map(u => u.procedures.reduce((a,p)=> a+u.tabMonths.reduce((x,m)=>x+(p.realizado[m]||0),0),0));
     const tab  = caps.map(u => u.procedures.reduce((a,p)=> a+u.tabMonths.reduce((x,m)=>x+(p.tab[m]||0),0),0));
-    ch.setOption({
+    regChart(dom, () => { const c = chartTheme(); return {
       grid:{left:8,right:16,top:40,bottom:8,containLabel:true},
       tooltip:{trigger:'axis',axisPointer:{type:'shadow'},valueFormatter:v=>fmt(v)+' proc.'},
-      legend:{top:0,textStyle:{color:'#45586b'},itemWidth:14,itemHeight:10},
-      xAxis:{type:'category',data:caps.map(u=>u.name),axisLine:{lineStyle:{color:'#d0d8e4'}},axisLabel:{color:'#45586b',interval:0}},
-      yAxis:{type:'value',axisLabel:{formatter:v=>fmt(v)},splitLine:{lineStyle:{color:'#eef2f7'}}},
+      legend:{top:0,textStyle:{color:c.axis},itemWidth:14,itemHeight:10},
+      xAxis:{type:'category',data:caps.map(u=>u.name),axisLine:{lineStyle:{color:c.line}},axisLabel:{color:c.axis,interval:0}},
+      yAxis:{type:'value',axisLabel:{formatter:v=>fmt(v),color:c.axis},splitLine:{lineStyle:{color:c.grid}}},
       series:[
-        {name:'Realizado',type:'bar',data:real,barWidth:'32%',itemStyle:{color:'#123a8f',borderRadius:[4,4,0,0]}},
-        {name:'Tabulado', type:'bar',data:tab, barWidth:'32%',itemStyle:{color:'#efb93c',borderRadius:[4,4,0,0]}}
+        {name:'Realizado',type:'bar',data:real,barWidth:'32%',itemStyle:{color:c.azul,borderRadius:[4,4,0,0]}},
+        {name:'Tabulado', type:'bar',data:tab, barWidth:'32%',itemStyle:{color:c.amarelo,borderRadius:[4,4,0,0]}}
       ]
-    });
-    REG.push(ch);
+    };});
   }
 
   function renderPerdas(data, caps) {
@@ -659,8 +713,19 @@
     return s;
   }
 
-  const REG = []; // gráficos p/ resize
-  window.addEventListener('resize', () => REG.forEach(c=>c.resize()));
+  // registro de gráficos: guarda instância + função que gera a option,
+  // permitindo redesenhar ao trocar de tema.
+  const REG = [];
+  function regChart(dom, buildOption) {
+    const ch = echarts.init(dom);
+    ch.setOption(buildOption());
+    REG.push({ ch, buildOption });
+    return ch;
+  }
+  function renderAllCharts() {
+    REG.forEach(r => r.ch.setOption(r.buildOption(), true));
+  }
+  window.addEventListener('resize', () => REG.forEach(r => r.ch.resize()));
 
   // ========================================================
   //  UPLOAD
@@ -682,6 +747,9 @@
   }
 
   function initUpload() {
+    applyTheme(getTheme());
+    const tbu = $('#tema-btn-upload');
+    if (tbu) { tbu.innerHTML = getTheme()==='dark'?ICON.sun:ICON.moon; tbu.onclick = () => { toggleTheme(); tbu.innerHTML = getTheme()==='dark'?ICON.sun:ICON.moon; }; }
     const dz = $('#dropzone'), input = $('#file-input');
     dz.onclick = () => input.click();
     input.onchange = () => { if (input.files[0]) handleFile(input.files[0]); };

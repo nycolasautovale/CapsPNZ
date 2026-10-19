@@ -12,8 +12,14 @@ const appSrc = fs.readFileSync(new URL('../src/app.js', import.meta.url), 'utf8'
 
 // Estratégia: envolver o IIFE expondo as funções no globalThis quando rodando em teste.
 globalThis.XLSX = XLSX;
-globalThis.window = { addEventListener(){} };
-globalThis.document = { addEventListener(){}, querySelector(){return null;}, createElement(){return {};} };
+const _store = {};
+globalThis.localStorage = { getItem:k=>_store[k]??null, setItem:(k,v)=>{_store[k]=String(v);} };
+globalThis.window = { addEventListener(){}, matchMedia:()=>({matches:false}) };
+globalThis.document = {
+  addEventListener(){}, querySelector(){return null;}, createElement(){return {};},
+  documentElement: { setAttribute(){}, getAttribute(){return 'light';} }
+};
+globalThis.getComputedStyle = () => ({ getPropertyValue:()=> '' });
 globalThis.echarts = { init(){return {setOption(){},resize(){}};}, graphic:{LinearGradient:function(){}} };
 globalThis.ICON = new Proxy({}, { get:()=> '' });
 
