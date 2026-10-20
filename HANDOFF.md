@@ -1,4 +1,4 @@
-# Handoff — Painel de Produção da Rede CAPS Petrolina
+# Handoff — Painel de Produção da Rede de Atenção Psicossocial de Petrolina
 
 Documento para retomar o desenvolvimento em outra sessão sem perder contexto.
 **Última atualização: outubro/2026.** Se você é uma nova sessão, leia este arquivo
@@ -9,7 +9,8 @@ inteiro antes de mexer no projeto.
 ## 1. O que é o projeto
 
 Painel **HTML interativo, autocontido e 100% offline** para a Secretaria de Saúde de
-Petrolina analisar a produção de procedimentos da rede CAPS. O usuário final abre um
+Petrolina analisar a produção de procedimentos da rede de atenção psicossocial (CAPS e
+unidades de acolhimento). O usuário final abre um
 único arquivo (`painel-caps-petrolina.html`), informa o **ano de referência**, **arrasta
 uma planilha `.xlsx`** de produção, e o painel monta sozinho a análise — sem instalar
 nada, sem servidor, sem internet (bibliotecas e fontes vêm embutidas).

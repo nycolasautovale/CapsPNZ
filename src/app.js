@@ -1,5 +1,5 @@
 /* ============================================================
-   PAINEL DE PRODUÇÃO - REDE CAPS PETROLINA
+   PAINEL DE PRODUÇÃO - REDE DE ATENÇÃO PSICOSSOCIAL DE PETROLINA
    Motor (leitura + validação + cálculos) e renderização.
    PASSO 1: motor, Capa, Panorama.
    ============================================================ */
@@ -366,7 +366,7 @@
       <div class="topbar"><div class="wrap">
         <span class="chip-logo"><img src="${LOGO.brasao}" alt="Prefeitura de Petrolina"></span>
         <span class="chip-logo"><img src="${LOGO.saude}" alt="Secretaria de Saúde"></span>
-        <div class="tb-title">Produção da Rede CAPS</div>
+        <div class="tb-title">Produção da Rede de Atenção Psicossocial</div>
         <div class="tb-period">${periodo}</div>
         <button class="tema-btn" id="tema-btn" type="button" aria-label="Alternar tema"></button>
       </div></div>

@@ -1,4 +1,4 @@
-# Painel de Produção — Rede CAPS Petrolina
+# Painel de Produção — Rede de Atenção Psicossocial de Petrolina
 
 Painel interativo para a Secretaria de Saúde de Petrolina analisar a produção de
 procedimentos das unidades da Rede de Atenção Psicossocial (CAPS), com foco na relação
