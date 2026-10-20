@@ -395,17 +395,21 @@ section.bloco { margin-bottom: 64px; scroll-margin-top: 86px; }
 /* ---------------- BIG NUMBERS ---------------- */
 .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; }
 .kpi {
-  position: relative; overflow: hidden;
+  position: relative;
   background: linear-gradient(165deg, var(--card-grad-1), var(--card-grad-2));
   border: 1px solid var(--linha);
   border-radius: var(--raio); padding: 22px; box-shadow: var(--sombra-sm);
   transition: box-shadow .22s var(--ease), transform .22s var(--ease), border-color .22s var(--ease);
 }
+/* hairline de luz respeitando o arredondamento do topo (sem overflow:hidden,
+   para não cortar o tooltip do "i") */
 .kpi::before {
-  content: ''; position: absolute; inset: 0 0 auto 0; height: 1px;
+  content: ''; position: absolute; left: 10px; right: 10px; top: 0; height: 1px;
   background: linear-gradient(90deg, transparent, var(--borda-top), transparent);
 }
 .kpi:hover { box-shadow: var(--sombra-md); transform: translateY(-3px); border-color: var(--linha-forte); }
+/* eleva o card quando o tooltip do "i" está aberto, para sobrepor vizinhos */
+.kpi:has(.kpi-info:hover), .kpi:has(.kpi-info:focus) { z-index: 20; }
 .kpi .kpi-top { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 16px; }
 .kpi .kpi-ico {
   width: 42px; height: 42px; border-radius: 12px;
